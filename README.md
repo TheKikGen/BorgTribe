@@ -2,7 +2,7 @@
 A Korg Electribe ES1 mod to enable pitch recording
 
 
-To describe the project (work in progress) rapidly).
+To describe the project (work in progress) rapidly...
 
 It is not possible to record pitch changes sent to ES1 via MIDI control changes : the ES1 doesn't care about these CC when in recording mode.  But, the pitch potentiometer motion are recorded... so....
 
