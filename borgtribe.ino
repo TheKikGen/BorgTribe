@@ -63,7 +63,7 @@ void setup() {
 
 
   // Say ready
-  borgTribeFlashPart(5,ES1GlobalParameters.midiGlobalParameters.MidiCH);
+  borgTribeFlashPart(3,ES1GlobalParameters.midiGlobalParameters.MidiCH);
 }
 
 
