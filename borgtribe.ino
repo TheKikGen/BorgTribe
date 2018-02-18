@@ -28,27 +28,26 @@ using namespace mcp4x;
 // Digital potentiometer.
 MCP4XXX mcp4251;
 
-int analogVal   = 0;
-int previousVal = 0;
 float r=0; // Analog ratio
-int maxVal = 0;
+unsigned maxVal = 0;
 
 extern ES1GlobalParameters_t ES1GlobalParameters;
+extern unsigned borgTribeAnalogPotVal ;
+extern unsigned borgTribePrevAnalogPotVal ; 
+extern uint8_t borgTribeMode;
 
 /////////////////////////////////////////////////
 // MAIN
 /////////////////////////////////////////////////
 
 void setup() {
-
+   
   Serial.begin(31250);      // Midi baud rate to MIDI IN of ES1
   midiSerial.begin(31250);  // used to read SysEx from midi out when necessary
-
+ 
   memset(&ES1GlobalParameters,0xFF,sizeof(ES1GlobalParameters)); 
 
-  // Wait for Electribe ready and get the current channel
-  delay(5000);
-   
+  // Wait for Electribe ready and get the current channel  
   // We can't go further without the MIDI channel and global parameters....
   while ( ! ES1getGlobalParameters() ) delay(1000);
 
@@ -59,21 +58,22 @@ void setup() {
   mcp4251.begin();
   maxVal = mcp4251.max_value()-1;
   r = 1023.00 / maxVal;
-  analogVal = previousVal = analogRead(2);
 
-
+  // Force digit potentiometer sync with analogic
+  borgTribePrevAnalogPotVal = 999;
+  
   // Say ready
-  borgTribeFlashPart(3,ES1GlobalParameters.midiGlobalParameters.MidiCH);
+  borgTribeFlashPart(borgTribeMode+1,ES1GlobalParameters.midiGlobalParameters.MidiCH);
 }
 
 
 void loop() {
 
   // Listen analog Pitch potentiometer and change value if moved
-  analogVal = analogRead(2) / r;
-  if ( analogVal != previousVal ) {
-     previousVal = analogVal;
-     mcp4251.set(constrain(analogVal,0,maxVal));
+  borgTribeAnalogPotVal = analogRead(2) / r;
+  if ( borgTribeAnalogPotVal != borgTribePrevAnalogPotVal ) {
+     borgTribePrevAnalogPotVal = borgTribeAnalogPotVal;
+     mcp4251.set(constrain(borgTribeAnalogPotVal,0,maxVal));
   }
 
   if (Serial.available() ) midiParser(Serial.read());

@@ -1,18 +1,21 @@
-#ifndef __MCP4X
-#define __MCP4X
+#ifndef __ICECAVE_ARDUINO_MCP4XXX
+#define __ICECAVE_ARDUINO_MCP4XXX
 
 #include <Arduino.h>
 #include <SPI.h>
+
+namespace mcp4x {
 
 /**
  * Controls Microchip's MCP4XXX range of digital potentiometers.
  * Data Sheet: http://ww1.microchip.com/downloads/en/DeviceDoc/22060b.pdf
  *
  * Please see README.md for more information.
+ * 
+ * Note that the MCP41X1 chips multiplex SDI and SDO on a single pin. To use these chips 
+ * with a standard SPI interface as on the Arduino you will need to connect the shared SDI/SDO pin on the pot 
+ * to the Arduino's MISO pin, then bridge the MISO pin to the MOSI pin with a resistor (3k9 resistor seems to work well).
  */
-
-namespace mcp4x {
-  
 class MCP4XXX
 {
   public:
@@ -44,14 +47,7 @@ class MCP4XXX
      * resolution  - res_7bit for MCP4X3X and MCP4X4X, res_8bit for MCP4X5X and MCP4X6X.
      */
     MCP4XXX(byte select_pin = SS, Pot pot = pot_0, Resolution resolution = res_8bit, WiperConfiguration config = potentiometer);
-
-
-    /**
-     * Begin potentiometer object
-     * Called from setup.
-     */    
-    void begin (void);
-    
+void begin(void);
     /**
      * Retrieve the maximum value allowed for the wiper position.
      *
@@ -356,7 +352,5 @@ class MCP4XXX
     mutable unsigned int m_select_nesting;
 };
 
-} // end mcp4x namespace
-
-#endif // __MCP4X
-
+} // end namespace
+#endif // __ICECAVE_ARDUINO_MCP4XXX

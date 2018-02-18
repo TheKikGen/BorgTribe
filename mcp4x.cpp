@@ -1,44 +1,6 @@
-/*
- * 
- * EXAMPLE
-
-#include <SPI.h>
-#include <mcp4xxx.h>
-
-using namespace icecave::arduino;
-
-MCP4XXX* pot;
-
-void setup()
-{
-    // Construct an instance of the MCP4XXX to manage the digipot.
-    // The first parameter is the pin number to use for 'chip select' (CS), if you are
-    // using the default SPI CS pin for your Arduino you can simply omit this parameter.
-    pot = new MCP4XXX(49);
-}
-
-void loop()
-{
-    // Move the wiper to the lowest value
-    pot->set(0);
-
-    // Move the wiper to the highest value
-    pot->set(pot->max_value());
-
-    // Increment the wiper position by one
-    pot->increment();
-
-    // Decrement the wiper position by one
-    pot->decrement();
-}
-
-END OF EXAMPLE 
-*/
-
 #include "mcp4x.h"
 
 namespace mcp4x {
-
 
 MCP4XXX::MCP4XXX(byte select_pin, Pot pot, Resolution resolution, WiperConfiguration config)
   : m_select_pin(select_pin)
@@ -46,18 +8,13 @@ MCP4XXX::MCP4XXX(byte select_pin, Pot pot, Resolution resolution, WiperConfigura
   , m_max_value(resolution + config) // Potentiometer configurations allow "resolution + 1" values, for setting the "full-scale" wiper position.
   , m_select_nesting(0)
 {
-
+ 
 }
-    
-void MCP4XXX::begin(void) 
-{
-  // Prepare SPI hardware.
 
-  SPI.begin();
-
-  // Prepare SPI SS line
-  digitalWrite(m_select_pin, HIGH);
+void MCP4XXX::begin(void){
+   SPI.begin();
   pinMode(m_select_pin, OUTPUT);
+  digitalWrite(m_select_pin, HIGH);
 }
 
 word MCP4XXX::max_value(void) const
@@ -188,13 +145,10 @@ void MCP4XXX::select(void) const
 {
   if (++m_select_nesting == 1)
   {
-    //SPI.setBitOrder(MSBFIRST);
-    //SPI.setDataMode(SPI_MODE0);
-    //SPI.setClockDivider(SPI_CLOCK_DIV128);
-
+    SPI.setBitOrder(MSBFIRST);
+    SPI.setDataMode(SPI_MODE0);
+    SPI.setClockDivider(SPI_CLOCK_DIV128);
     digitalWrite(m_select_pin, LOW);
-    SPI.beginTransaction(SPISettings(SPI_CLOCK_DIV4, MSBFIRST, SPI_MODE0));
-    
   }
 }
 
@@ -202,10 +156,6 @@ void MCP4XXX::deselect(void) const
 {
   if (--m_select_nesting == 0)
   {
-    //digitalWrite(m_select_pin, HIGH);
-    SPI.endTransaction();
-    
-    // Deassert SPI bus
     digitalWrite(m_select_pin, HIGH);
   }
 }
@@ -246,11 +196,9 @@ bool MCP4XXX::transfer(Address address, Command command, word data) const
   deselect();
   return valid;
 }
-//return transfer(static_cast<Address>(m_pot), command_write, min(value, m_max_value));
+
 bool MCP4XXX::transfer(Address address, Command command, word data, word& result) const
 {
-  
-  // Assert SPI Bus
   select();
 
   word cmd = build_command(address, command, data);
@@ -326,5 +274,4 @@ bool MCP4XXX::get_tcon(byte mask, bool& value) const
   return false;
 }
 
-} // namespace mcp4x
-
+} // end namespace
