@@ -1,3 +1,16 @@
+/**
+ * Controls Microchip's MCP4XXX range of digital potentiometers.
+ * Data Sheet: http://ww1.microchip.com/downloads/en/DeviceDoc/22060b.pdf
+ *
+ * 
+ * Note that the MCP41X1 chips multiplex SDI and SDO on a single pin. To use these chips 
+ * with a standard SPI interface as on the Arduino you will need to connect the shared SDI/SDO pin on the pot 
+ * to the Arduino's MISO pin, then bridge the MISO pin to the MOSI pin with a resistor (3k9 resistor seems to work well).
+ * 
+ * Credit to ICECAVE / James Harris
+ * https://github.com/jmalloc
+ */
+
 #ifndef __ICECAVE_ARDUINO_MCP4XXX
 #define __ICECAVE_ARDUINO_MCP4XXX
 

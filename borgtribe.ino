@@ -1,18 +1,30 @@
 /*
- * BORGTRIBE
-  Korg Electribe ES1 Mod
-  1/ Control the pitch with a digital potentiometer to enable recording notes via MIDI
-  2/ Intercept MIDI notes messages to parse them and send the right pitch
 
-  Note below C2 are purely ignored
-  4 octaves from C2 til C5
+  BORGTRIBE
+  A Korg Electribe ES1 Mod allowing playing and recording chromatic notes
+  Copyright (C) 2017/2018 by The KikGen labs.
 
-  Parts notes on Electribe ES1 must be configured below C2 to avoid conflicts
+  MAIN FILE - ARDUINO SKETCH
+  
+  Permission to use, copy, modify, distribute, and sell this
+  software and its documentation for any purpose is hereby granted
+  without fee, provided that the above copyright notice appear in
+  all copies and that both that the copyright notice and this
+  permission notice and warranty disclaimer appear in supporting
+  documentation, and that the name of the author not be used in
+  advertising or publicity pertaining to distribution of the
+  software without specific, written prior permission.
 
-  Part 1-9 : C1-G#1
-  Time Slice : A1
-  Audio IN : A1#
+  The author disclaim all warranties with regard to this
+  software, including all implied warranties of merchantability
+  and fitness.  In no event shall the author be liable for any
+  special, indirect or consequential damages or any damages
+  whatsoever resulting from loss of use, data or profits, whether
+  in an action of contract, negligence or other tortious action,
+  arising out of or in connection with the use or performance of
+  this software.
 
+   Licence : MIT.
 */
 
 #include <SoftwareSerial.h>
@@ -47,9 +59,13 @@ void setup() {
  
   memset(&ES1GlobalParameters,0xFF,sizeof(ES1GlobalParameters)); 
 
+    
   // Wait for Electribe ready and get the current channel  
   // We can't go further without the MIDI channel and global parameters....
-  while ( ! ES1getGlobalParameters() ) delay(1000);
+  while ( ! ES1getGlobalParameters() ) {
+    midiStop();
+    delay(1000);
+  }
 
   // Set parameters for BorgTribe (notes number)
   while ( ! ES1setGlobalParameters() ) delay(2000);
@@ -69,13 +85,15 @@ void setup() {
 
 void loop() {
 
-  // Listen analog Pitch potentiometer and change value if moved
-  borgTribeAnalogPotVal = analogRead(2) / r;
-  if ( borgTribeAnalogPotVal != borgTribePrevAnalogPotVal ) {
-     borgTribePrevAnalogPotVal = borgTribeAnalogPotVal;
-     mcp4251.set(constrain(borgTribeAnalogPotVal,0,maxVal));
+  
+  if ( borgTribeMode != BORGTRIBE_POTPITCHEDNOTE_MODE ) {
+      // Listen analog Pitch potentiometer and change value if moved
+      borgTribeAnalogPotVal = analogRead(2) / r;
+      if ( borgTribeAnalogPotVal != borgTribePrevAnalogPotVal ) {
+         borgTribePrevAnalogPotVal = borgTribeAnalogPotVal;
+         mcp4251.set(constrain(borgTribeAnalogPotVal,0,maxVal));
+      }
   }
 
   if (Serial.available() ) midiParser(Serial.read());
-
 }
