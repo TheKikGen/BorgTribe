@@ -47,9 +47,13 @@ void setup() {
  
   memset(&ES1GlobalParameters,0xFF,sizeof(ES1GlobalParameters)); 
 
+    
   // Wait for Electribe ready and get the current channel  
   // We can't go further without the MIDI channel and global parameters....
-  while ( ! ES1getGlobalParameters() ) delay(1000);
+  while ( ! ES1getGlobalParameters() ) {
+    midiStop();
+    delay(1000);
+  }
 
   // Set parameters for BorgTribe (notes number)
   while ( ! ES1setGlobalParameters() ) delay(2000);
@@ -69,13 +73,15 @@ void setup() {
 
 void loop() {
 
-  // Listen analog Pitch potentiometer and change value if moved
-  borgTribeAnalogPotVal = analogRead(2) / r;
-  if ( borgTribeAnalogPotVal != borgTribePrevAnalogPotVal ) {
-     borgTribePrevAnalogPotVal = borgTribeAnalogPotVal;
-     mcp4251.set(constrain(borgTribeAnalogPotVal,0,maxVal));
+  
+  if ( borgTribeMode != BORGTRIBE_POTPITCHEDNOTE_MODE ) {
+      // Listen analog Pitch potentiometer and change value if moved
+      borgTribeAnalogPotVal = analogRead(2) / r;
+      if ( borgTribeAnalogPotVal != borgTribePrevAnalogPotVal ) {
+         borgTribePrevAnalogPotVal = borgTribeAnalogPotVal;
+         mcp4251.set(constrain(borgTribeAnalogPotVal,0,maxVal));
+      }
   }
 
   if (Serial.available() ) midiParser(Serial.read());
-
 }

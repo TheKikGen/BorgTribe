@@ -13,14 +13,16 @@ using namespace mcp4x;
 extern MCP4XXX mcp4251;
 extern SoftwareSerial midiSerial;
 
-ES1GlobalParameters_t ES1GlobalParameters;
+ES1GlobalParameters_t       ES1GlobalParameters;
+ES1partParameters_t         ES1part1Parameters;
 
 uint8_t borgTribeMode =   BORGTRIBE_CLASSIC_MODE;
 bool    borgTribeVelocityOn = false;
-bool    borgTribeCommandKeyPressed = false;
 uint8_t borgTribeCurrentPart = 0;
 unsigned borgTribeAnalogPotVal = 0;
 unsigned borgTribePrevAnalogPotVal = 0; 
+uint8_t  sysExBuffer[256];
+
 
 /////////////////////////////////////////////////
 // ES1 SYSEX  Get midi channel, and global parameters
@@ -28,7 +30,6 @@ unsigned borgTribePrevAnalogPotVal = 0;
 bool ES1getGlobalParameters(unsigned int timeout) {
     int channel = -1;
     unsigned long len=0;
-    uint8_t  sysExBuffer[256];
   
     midiUniversalDeviceInquiry();
     len = getSysEx( sysExBuffer, sizeof(sysExBuffer), timeout );
@@ -68,7 +69,7 @@ bool ES1getGlobalParameters(unsigned int timeout) {
       // GLOBAL DATA DUMP REQUEST
       if ( sysExBuffer[4]  == 0x51 ) {
           // Decode Sysex Message
-        decodeSysEx(&sysExBuffer[5],(byte *)&ES1GlobalParameters.midiGlobalParameters , len - 6);
+        decodeSysEx(&sysExBuffer[5],(byte *)&ES1GlobalParameters.midiGlobalParameters , len - 6,false);
         return true;        
       }
    } 
@@ -82,8 +83,6 @@ bool ES1getGlobalParameters(unsigned int timeout) {
 bool ES1setGlobalParameters(unsigned int timeout) {
 
   // 153 bytes encoded
-
-  byte sysExBuffer[150];
   uint16_t len;
   uint16_t i;
 
@@ -95,7 +94,7 @@ bool ES1setGlobalParameters(unsigned int timeout) {
     ES1GlobalParameters.midiGlobalParameters.PartsNoteNumber[i] = ES1GlobalParameters.midiGlobalParameters.PartsNoteNumber[i-1]+1;
   }
 
-  len = encodeSysEx((byte *)&(ES1GlobalParameters.midiGlobalParameters),sysExBuffer, sizeof(ES1midiGlobalParameters_t));
+  len = encodeSysEx((byte *)&(ES1GlobalParameters.midiGlobalParameters),sysExBuffer, sizeof(ES1midiGlobalParameters_t),false);
 
   Serial.write(0xF0);
   Serial.write(0x42);
@@ -121,6 +120,78 @@ bool ES1setGlobalParameters(unsigned int timeout) {
   return  false;
 }
 
+
+/////////////////////////////////////////////////
+// ES1 Clear current pattern
+/////////////////////////////////////////////////
+void ES1clearCurrentPattern() {
+   int i,j,len;
+   int size=0;
+   byte buffIn[14];
+   byte buffOut[150];
+   
+   // Due to the Arduino memory limitation, we must set pattern parameters by 7 bytes block
+   
+   // Get midi global parameters
+   Serial.write(0xF0);  Serial.write(0x42);   
+   Serial.write(0x30 );
+   Serial.write(0x57);   Serial.write(0x40);   
+
+   // Bloc 1 - 7 Bytes => 8 bytes
+   buffIn[0] =   0X3C   ;// 0- Tempo MSB
+   buffIn[1] =   00     ;// 1- Tempo LSB
+   buffIn[2] =   0x00   ;// 2- Roll Type - Scale beat - Length
+   buffIn[3] =   0      ;// 3- Swing
+   buffIn[4] =   0      ;// 4- Effect type
+   buffIn[5] =   0      ;// 5- Effect Edit 1
+   buffIn[6] =   0      ;// 6- Effect Edit 2  
+   buffIn[7] =   0      ;//  7- Effect motion Seq stat
+   buffIn[8] =   0      ;//  8- Delay Depth
+   buffIn[9] =   0      ;//  9- Delay Time
+   buffIn[10] =  0      ;// 10- Delay BPM sync / Motion Seq
+   buffIn[11] =  40     ;// 11- Accent level / Motion SEQ
+
+   ///////
+   buffIn[12] =  0X80   ;// 12- (NO Fx Edit 1 MotionSEQ Motion OFF )
+   buffIn[13] =  0X80   ;// 13- (       "            )
+
+   size += (len = encodeSysEx(buffIn,buffOut, 14,false) );
+   for (i = 0 ; i<len ; i++) Serial.write(buffOut[i]);
+
+   // Write 36 block * (1+7) 
+   for (i = 1 ; i<= 36; i++) {
+        Serial.write(0x7F);
+        for (j=1; j <=7 ; j++) Serial.write(0);
+   }
+   size += 288;
+
+   // We are only able to write Part1 parameters eventually
+   // The struct is padded to be aligned on 7 bytes
+   // Part 1 parameters. 128 bytes 
+   // Pos 266 + 2 dummy bytes before + 3 dummy bytes after part1 params
+   memset(&ES1part1Parameters,0x00,sizeof(ES1part1Parameters)); 
+   ES1part1Parameters.SamplePrm.sampleNo  = 0;
+   ES1part1Parameters.SamplePrm.filter    = 127;
+   ES1part1Parameters.SamplePrm.level     = 127;
+   ES1part1Parameters.SamplePrm.panPot    = 64;
+   ES1part1Parameters.SamplePrm.pitch     = 64;
+   ES1part1Parameters.SamplePrm.reverse   = 0;
+   ES1part1Parameters.SamplePrm.roll      = 0;
+   ES1part1Parameters.SamplePrm.effect    = 0;
+   ES1part1Parameters.StepSeqData[0]      = B00010001;
+   ES1part1Parameters.StepSeqData[1]      = B00010001;
+   
+   len = encodeSysEx((byte *)&ES1part1Parameters,buffOut, sizeof(ES1part1Parameters),false);   
+   for (i = 0 ; i<len ; i++) { Serial.write(buffOut[i]);  }
+   size += len;
+
+   size = 1980 - size;
+   // Fill the rest of the sysex message
+   for ( i = 1 ; i<=size ; i++ ) { Serial.write(0x00);  }
+
+   Serial.write(0xF7);
+  
+}
 /////////////////////////////////////////////////
 // ES1 send Pitch From Note
 /////////////////////////////////////////////////
@@ -150,30 +221,14 @@ void borgTribeSetMode(uint8_t channel) {
 // Flash the part1 n times
 /////////////////////////////////////////////////
 void borgTribeFlashPart(uint8_t nn,uint8_t channel) {   
-  uint8_t i;
+  uint8_t i,j;
     
   for (i=1; i<= nn ; i++ ) {
-    Serial.write(0x90+channel);Serial.write(ES1GlobalParameters.midiGlobalParameters.PartsNoteNumber[0]);Serial.write(1);  // Part 1 Note Number
-    Serial.write(0x90+channel);Serial.write(ES1GlobalParameters.midiGlobalParameters.PartsNoteNumber[1]);Serial.write(1);  // Part 2 Note Number
-    Serial.write(0x90+channel);Serial.write(ES1GlobalParameters.midiGlobalParameters.PartsNoteNumber[2]);Serial.write(1);  // Part 3 Note Number
-    Serial.write(0x90+channel);Serial.write(ES1GlobalParameters.midiGlobalParameters.PartsNoteNumber[3]);Serial.write(1);  // Part 4 Note Number
-    Serial.write(0x90+channel);Serial.write(ES1GlobalParameters.midiGlobalParameters.PartsNoteNumber[4]);Serial.write(1);  // Part 5 Note Number
-    Serial.write(0x90+channel);Serial.write(ES1GlobalParameters.midiGlobalParameters.PartsNoteNumber[5]);Serial.write(1);  // Part 6 Note Number
-    Serial.write(0x90+channel);Serial.write(ES1GlobalParameters.midiGlobalParameters.PartsNoteNumber[6]);Serial.write(1);  // Part 6A Note Number
-    Serial.write(0x90+channel);Serial.write(ES1GlobalParameters.midiGlobalParameters.PartsNoteNumber[7]);Serial.write(1);  // Part 7A Note Number
-    Serial.write(0x90+channel);Serial.write(ES1GlobalParameters.midiGlobalParameters.PartsNoteNumber[8]);Serial.write(1);  // Part 7B Note Number
-    
-    // Note off not necessary but stay midi compliant    
-    Serial.write(0x80+channel);Serial.write(ES1GlobalParameters.midiGlobalParameters.PartsNoteNumber[0]);Serial.write(1);  // Part 1 Note Number    
-    Serial.write(0x80+channel);Serial.write(ES1GlobalParameters.midiGlobalParameters.PartsNoteNumber[1]);Serial.write(1);  // Part 2 Note Number
-    Serial.write(0x80+channel);Serial.write(ES1GlobalParameters.midiGlobalParameters.PartsNoteNumber[2]);Serial.write(1);  // Part 3 Note Number
-    Serial.write(0x80+channel);Serial.write(ES1GlobalParameters.midiGlobalParameters.PartsNoteNumber[3]);Serial.write(1);  // Part 4 Note Number
-    Serial.write(0x80+channel);Serial.write(ES1GlobalParameters.midiGlobalParameters.PartsNoteNumber[4]);Serial.write(1);  // Part 5 Note Number
-    Serial.write(0x80+channel);Serial.write(ES1GlobalParameters.midiGlobalParameters.PartsNoteNumber[5]);Serial.write(1);  // Part 6 Note Number
-    Serial.write(0x80+channel);Serial.write(ES1GlobalParameters.midiGlobalParameters.PartsNoteNumber[6]);Serial.write(1);  // Part 6A Note Number
-    Serial.write(0x80+channel);Serial.write(ES1GlobalParameters.midiGlobalParameters.PartsNoteNumber[7]);Serial.write(1);  // Part 7A Note Number
-    Serial.write(0x80+channel);Serial.write(ES1GlobalParameters.midiGlobalParameters.PartsNoteNumber[8]);Serial.write(1);  // Part 7B Note Number
-
+    for (j=0; j<= 8 ; j++ ) {
+        Serial.write(0x90+channel);Serial.write(ES1GlobalParameters.midiGlobalParameters.PartsNoteNumber[j]);Serial.write(1);  // Part j Note Number   
+        // Note off not necessary but stay midi compliant    
+        Serial.write(0x80+channel);Serial.write(ES1GlobalParameters.midiGlobalParameters.PartsNoteNumber[j]);Serial.write(1);  // Part j Note Number    
+    }
     delay(250);
   }
 }
@@ -187,6 +242,74 @@ void borgTribeSetPartFromNote(uint8_t note) {
     borgTribeCurrentPart = note + 12 - ROOT_KEY  ;
   }
 }
+/////////////////////////////////////////////////
+// Software reset 
+/////////////////////////////////////////////////
+void(* borgTribeReset) (void) = 0; //declare reset function @ address 0
+
+/////////////////////////////////////////////////
+// BorgTribe commands from midi keyboard
+/////////////////////////////////////////////////
+bool borgTribeCommandExec(uint8_t note,uint8_t channel,bool isOn){
+  static bool commandModeEnabled = false;
+  static int  commandToConfirm = -1;
+
+  if (note == BORGTRIBE_CMD_MODE_KEY ) {
+    commandModeEnabled = isOn ;
+    if ( !commandModeEnabled ) {
+        commandToConfirm = -1;        
+    }
+    return true;
+  }
+
+  if  ( ! commandModeEnabled ) return false;
+
+  // Borgtribe commands
+  
+  switch (note) {
+    case BORGTRIBE_CMD_SET_MODE_KEY:
+       if (isOn) borgTribeSetMode(channel);
+       break;
+    
+    case BORGTRIBE_CMD_TOGGLE_VELOCITY_KEY:
+       if (isOn) {
+          borgTribeVelocityOn = !borgTribeVelocityOn ;                                                                
+          borgTribeFlashPart(borgTribeVelocityOn +1,channel );
+       }
+       break;  
+  
+    case BORGTRIBE_CMD_CLEAR_PATTERN_KEY:
+       if (isOn ) {
+          if (commandToConfirm == BORGTRIBE_CMD_CLEAR_PATTERN_KEY ) {
+              ES1clearCurrentPattern();
+              commandToConfirm = -1;
+          } else {
+            commandToConfirm = BORGTRIBE_CMD_CLEAR_PATTERN_KEY;
+            borgTribeFlashPart(5,channel );
+          }
+       }
+       break;                                  
+
+    case BORGTRIBE_CMD_RESET_BORGTRIBE:
+       if (isOn ) {
+          if (commandToConfirm == BORGTRIBE_CMD_RESET_BORGTRIBE ) {
+              commandToConfirm = -1;
+              borgTribeReset();
+              //(....) software reset.....
+ 
+          } else {
+            commandToConfirm = BORGTRIBE_CMD_RESET_BORGTRIBE;
+            borgTribeFlashPart(5,channel );
+          }
+       }
+       break;                                  
+
+       
+  }          
+
+  return true;
+}
+
 
 /////////////////////////////////////////////////
 // Specific ES1 process for Note on
@@ -198,20 +321,8 @@ void ES1processNoteOn(uint8_t note, uint8_t velocity, uint8_t channel) {
   
   borgTribeSetPartFromNote(note);
 
-  if (note == BORGTRIBE_CMD_MODE_KEY ) borgTribeCommandKeyPressed=true;
-  else if ( borgTribeCommandKeyPressed ) {        // C0 is holded : command mode
-      // Borgtribe commands
-        switch (note) {
-          case BORGTRIBE_CMD_SET_MODE_KEY:
-             borgTribeSetMode(channel);
-             break;
-          case BORGTRIBE_CMD_TOGGLE_VELOCITY_KEY:
-             borgTribeVelocityOn = !borgTribeVelocityOn ;                                                                
-             borgTribeFlashPart(borgTribeVelocityOn +1,channel );
-             break;          
-        }          
-  }    
-
+  if (borgTribeCommandExec(note,channel,true)) return;
+  
   // Case of Note off beeing note on at a zero velocity
   if (velocity == 0) {
     ES1processNoteOff(note,velocity,channel);
@@ -253,8 +364,7 @@ void ES1processNoteOn(uint8_t note, uint8_t velocity, uint8_t channel) {
 /////////////////////////////////////////////////
 void ES1processNoteOff(uint8_t note, uint8_t velocity, uint8_t channel) {
   
-  if (note == BORGTRIBE_CMD_MODE_KEY ) borgTribeCommandKeyPressed=false;
-  
+  if (borgTribeCommandExec(note,channel,false)) return;
   Serial.write(0x80+channel);Serial.write(note);Serial.write(velocity);
   
 }
@@ -326,11 +436,10 @@ void ES1processMidiMsg(uint8_t midiMessage [] ) {
   }
 }
 
-
 /////////////////////////////////////////////////
 // ENCODE 8BITS TO 7BITS SYSEX
 /////////////////////////////////////////////////
-unsigned encodeSysEx(const byte* inData, byte* outSysEx, unsigned inLength)
+unsigned encodeSysEx(const byte* inData, byte* outSysEx, unsigned inLength,bool fromHighbit)
 {
     unsigned outLength  = 0;     // Num bytes in output array.
     byte count          = 0;     // Num 7bytes in a block.
@@ -342,7 +451,7 @@ unsigned encodeSysEx(const byte* inData, byte* outSysEx, unsigned inLength)
         const byte msb  = data >> 7;
         const byte body = data & 0x7f;
 
-        outSysEx[0] |= (msb << (6 - count));
+        outSysEx[0] |= (msb << (fromHighbit ? 6-count : count ));
         outSysEx[1 + count] = body;
 
         if (count++ == 6)
@@ -355,11 +464,10 @@ unsigned encodeSysEx(const byte* inData, byte* outSysEx, unsigned inLength)
     }
     return outLength + count + (count != 0 ? 1 : 0);
 }
-
 /////////////////////////////////////////////////
 // DECODE 7BITS SYSEX TO 8BITS
 /////////////////////////////////////////////////
-unsigned decodeSysEx(const byte* inSysEx, byte* outData, unsigned inLength)
+unsigned decodeSysEx(const byte* inSysEx, byte* outData, unsigned inLength,bool fromHighbit)
 {
     unsigned count  = 0;
     byte msbStorage = 0;
@@ -375,7 +483,8 @@ unsigned decodeSysEx(const byte* inSysEx, byte* outData, unsigned inLength)
         else
         {
             const byte body = inSysEx[i];
-            const byte msb  = ((msbStorage >> byteIndex--) & 1) << 7;
+            const byte msb  = ((msbStorage >> (fromHighbit ? byteIndex : 6 - byteIndex) ) & 1) << 7;
+            byteIndex--;
             outData[count++] = msb | body;
         }
     }
@@ -459,6 +568,14 @@ void midiPitchBendChange(uint8_t channel, int value) {
     // Low, High
     Serial.write(0xE0 + channel);
     Serial.write(change & 0x7F); Serial.write ( (change >> 7) & 0x7F );
+}
+
+/////////////////////////////////////////////////
+// Real time - STOP
+/////////////////////////////////////////////////
+
+void midiStop() {
+  Serial.write(0xFC);
 }
 
 
