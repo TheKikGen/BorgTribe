@@ -145,6 +145,7 @@ void ES1processNoteOff(uint8_t note, uint8_t velocity, uint8_t channel);
 void ES1processCC(uint8_t second, uint8_t third, uint8_t channel);
 void ES1processPitchBend(uint8_t LSByte, uint8_t MSByte, uint8_t channel);
 void ES1processMidiMsg(uint8_t midiMessage [] );
+void ES1processMidiMsg2(uint8_t midiMessage [] );
 void ES1sendPitchFromNote(uint8_t note,uint8_t channel);
 void borgTribeSetPartFromNote(uint8_t note);
 bool borgTribeCommandExec(uint8_t note,bool isOn);
