@@ -29,6 +29,7 @@
 
 #include <SoftwareSerial.h>
 #include "mcp4x.h"
+#include "midiXparser.h"
 #include "ES1Midi.h"
 
 #define RX 2
@@ -43,10 +44,16 @@ MCP4XXX mcp4251;
 float r=0; // Analog ratio
 unsigned maxVal = 0;
 
+// Midi parsers
+midiXparser midiInParser;
+midiXparser midiOutParser;
+
+
 extern ES1GlobalParameters_t ES1GlobalParameters;
 extern unsigned borgTribeAnalogPotVal ;
 extern unsigned borgTribePrevAnalogPotVal ; 
 extern uint8_t borgTribeMode;
+
 
 /////////////////////////////////////////////////
 // MAIN
@@ -59,7 +66,6 @@ void setup() {
  
   memset(&ES1GlobalParameters,0xFF,sizeof(ES1GlobalParameters)); 
 
-    
   // Wait for Electribe ready and get the current channel  
   // We can't go further without the MIDI channel and global parameters....
   while ( ! ES1getGlobalParameters() ) {
@@ -69,6 +75,14 @@ void setup() {
 
   // Set parameters for BorgTribe (notes number)
   while ( ! ES1setGlobalParameters() ) delay(2000);
+
+  // Set midi parsers  
+  midiInParser.setMidiChannelFilter(ES1GlobalParameters.midiGlobalParameters.MidiCH);
+  midiInParser.setChannelMsgFilterMask(midiXparser::noteOffMsk | midiXparser::noteOnMsk 
+                                | midiXparser::controlChangeMsk | midiXparser::pitchBendMsk);
+
+  midiOutParser.setMidiChannelFilter(ES1GlobalParameters.midiGlobalParameters.MidiCH);
+  midiOutParser.setChannelMsgFilterMask(midiXparser::noteOnMsk);
 
   // Digital potentiometer init
   mcp4251.begin();
@@ -80,8 +94,8 @@ void setup() {
   
   // Say ready
   borgTribeFlashPart(borgTribeMode+1,ES1GlobalParameters.midiGlobalParameters.MidiCH);
-}
 
+}
 
 void loop() {
 
@@ -91,9 +105,21 @@ void loop() {
       borgTribeAnalogPotVal = analogRead(2) / r;
       if ( borgTribeAnalogPotVal != borgTribePrevAnalogPotVal ) {
          borgTribePrevAnalogPotVal = borgTribeAnalogPotVal;
-         mcp4251.set(constrain(borgTribeAnalogPotVal,0,maxVal));
+         mcp4251.set(borgTribeAnalogPotVal);
       }
   }
 
-  if (Serial.available() ) midiParser(Serial.read());
+  // MIDI IN
+  if (Serial.available() ) {
+
+    if ( midiInParser.parse(  Serial.read() ) ) 
+      ES1processMidiMsg(midiInParser.getMidiMsg()) ;
+    else if( ! midiInParser.isByteCaptured()) 
+        Serial.write(midiInParser.getByte());
+  } else
+  // MIDI out (listening note on only here)
+  if (midiSerial.available() ) {
+    if ( midiOutParser.parse(  midiSerial.read() ) ) 
+        borgTribeSetPartFromNote(midiOutParser.getMidiMsg()[1]) ;
+  }
 }

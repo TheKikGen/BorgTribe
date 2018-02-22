@@ -32,7 +32,6 @@
 */
 
 #include "ES1Midi.h"
-#include "mcp4x.h"
 
 using namespace mcp4x;
 
@@ -42,13 +41,12 @@ extern SoftwareSerial midiSerial;
 ES1GlobalParameters_t       ES1GlobalParameters;
 ES1partParameters_t         ES1part1Parameters;
 
-uint8_t borgTribeMode =   BORGTRIBE_CLASSIC_MODE;
-bool    borgTribeVelocityOn = false;
-uint8_t borgTribeCurrentPart = 0;
+uint8_t  borgTribeMode =   BORGTRIBE_CLASSIC_MODE;
+bool     borgTribeVelocityOn = false;
+uint8_t  borgTribeCurrentPart = 0;
 unsigned borgTribeAnalogPotVal = 0;
 unsigned borgTribePrevAnalogPotVal = 0; 
 uint8_t  sysExBuffer[256];
-
 
 /////////////////////////////////////////////////
 // ES1 SYSEX  Get midi channel, and global parameters
@@ -95,7 +93,7 @@ bool ES1getGlobalParameters(unsigned int timeout) {
       // GLOBAL DATA DUMP REQUEST
       if ( sysExBuffer[4]  == 0x51 ) {
           // Decode Sysex Message
-        decodeSysEx(&sysExBuffer[5],(byte *)&ES1GlobalParameters.midiGlobalParameters , len - 6,false);
+        midiXparser::decodeSysEx(&sysExBuffer[5],(byte *)&ES1GlobalParameters.midiGlobalParameters , len - 6,false);
         return true;        
       }
    } 
@@ -120,7 +118,7 @@ bool ES1setGlobalParameters(unsigned int timeout) {
     ES1GlobalParameters.midiGlobalParameters.PartsNoteNumber[i] = ES1GlobalParameters.midiGlobalParameters.PartsNoteNumber[i-1]+1;
   }
 
-  len = encodeSysEx((byte *)&(ES1GlobalParameters.midiGlobalParameters),sysExBuffer, sizeof(ES1midiGlobalParameters_t),false);
+  len = midiXparser::encodeSysEx((byte *)&(ES1GlobalParameters.midiGlobalParameters),sysExBuffer, sizeof(ES1midiGlobalParameters_t),false);
 
   Serial.write(0xF0);
   Serial.write(0x42);
@@ -181,7 +179,7 @@ void ES1clearCurrentPattern() {
    buffIn[12] =  0X80   ;// 12- (NO Fx Edit 1 MotionSEQ Motion OFF )
    buffIn[13] =  0X80   ;// 13- (       "            )
 
-   size += (len = encodeSysEx(buffIn,buffOut, 14,false) );
+   size += (len = midiXparser::encodeSysEx(buffIn,buffOut, 14,false) );
    for (i = 0 ; i<len ; i++) Serial.write(buffOut[i]);
 
    // Write 36 block * (1+7) 
@@ -207,7 +205,7 @@ void ES1clearCurrentPattern() {
    ES1part1Parameters.StepSeqData[0]      = B00010001;
    ES1part1Parameters.StepSeqData[1]      = B00010001;
    
-   len = encodeSysEx((byte *)&ES1part1Parameters,buffOut, sizeof(ES1part1Parameters),false);   
+   len = midiXparser::encodeSysEx((byte *)&ES1part1Parameters,buffOut, sizeof(ES1part1Parameters),false);   
    for (i = 0 ; i<len ; i++) { Serial.write(buffOut[i]);  }
    size += len;
 
@@ -244,7 +242,7 @@ void borgTribeSetMode(uint8_t channel) {
 }
 
 /////////////////////////////////////////////////
-// Flash the part1 n times
+// Flash the parts n times
 /////////////////////////////////////////////////
 void borgTribeFlashPart(uint8_t nn,uint8_t channel) {   
   uint8_t i,j;
@@ -406,6 +404,8 @@ static uint8_t dataEntryMSB = 0xFF;
   switch (second)
   {
     case 0X01: // Modulation Wheel
+     mcp4251.set(third*2);
+     break;
     case 0x06: // Data entry MSB
     case 0x63: // NRPN MSB
     case 0x62: // NRPN LSB
@@ -420,8 +420,7 @@ static uint8_t dataEntryMSB = 0xFF;
 void ES1processPitchBend(uint8_t LSByte, uint8_t MSByte, uint8_t channel) {
 
   // Set the potentiometer with the pitch bend wheel MSB value
-  mcp4251.set(MSByte*2);
-
+  mcp4251.set(MSByte*2); 
 //  Serial.write(0xE0+channel);Serial.write(LSByte);Serial.write(MSByte);
 
 }
@@ -430,92 +429,25 @@ void ES1processPitchBend(uint8_t LSByte, uint8_t MSByte, uint8_t channel) {
 // Specific ES1 MIDI Messages processing
 /////////////////////////////////////////////////
 void ES1processMidiMsg(uint8_t midiMessage [] ) {
-  uint8_t i = midiMessage[0];
-  
-  // Process only message on the ES1 midi channel
-  if ( (midiMessage[1] & 0x0F ) !=   ES1GlobalParameters.midiGlobalParameters.MidiCH ) {      
-      while ( i ) {
-         Serial.write(midiMessage[4-i]); i--;
-      }
-      return;
-  }
-
-  switch (midiMessage[1] >> 4)
+ 
+  switch (midiMessage[0] >> 4)
   {
     case 0x9: // note On
-        ES1processNoteOn(midiMessage[2],midiMessage[3],midiMessage[1] & 0x0F);
+        ES1processNoteOn(midiMessage[1],midiMessage[2],midiMessage[0] & 0x0F);
         break;
     case 0x8: // note Off
-        ES1processNoteOff(midiMessage[2],midiMessage[3],midiMessage[1] & 0x0F);
+        ES1processNoteOff(midiMessage[1],midiMessage[2],midiMessage[0] & 0x0F);
         break;
     case 0xB: // Control change
-        ES1processCC(midiMessage[2],midiMessage[3],midiMessage[1] & 0x0F);
+        ES1processCC(midiMessage[1],midiMessage[2],midiMessage[0] & 0x0F);
         break;
     case 0xE: // Pitch bend
-        ES1processPitchBend(midiMessage[2],midiMessage[3],midiMessage[1] & 0x0F);
+    
+        ES1processPitchBend(midiMessage[1],midiMessage[2],midiMessage[0] & 0x0F);
         break;
-    default: // All others
-        while ( i ) {
-          Serial.write(midiMessage[4-i]);
-          i--;
-        }
   }
 }
 
-/////////////////////////////////////////////////
-// ENCODE 8BITS TO 7BITS SYSEX
-/////////////////////////////////////////////////
-unsigned encodeSysEx(const byte* inData, byte* outSysEx, unsigned inLength,bool fromHighbit)
-{
-    unsigned outLength  = 0;     // Num bytes in output array.
-    byte count          = 0;     // Num 7bytes in a block.
-    outSysEx[0]         = 0;
-
-    for (unsigned i = 0; i < inLength; ++i)
-    {
-        const byte data = inData[i];
-        const byte msb  = data >> 7;
-        const byte body = data & 0x7f;
-
-        outSysEx[0] |= (msb << (fromHighbit ? 6-count : count ));
-        outSysEx[1 + count] = body;
-
-        if (count++ == 6)
-        {
-            outSysEx   += 8;
-            outLength  += 8;
-            outSysEx[0] = 0;
-            count       = 0;
-        }
-    }
-    return outLength + count + (count != 0 ? 1 : 0);
-}
-/////////////////////////////////////////////////
-// DECODE 7BITS SYSEX TO 8BITS
-/////////////////////////////////////////////////
-unsigned decodeSysEx(const byte* inSysEx, byte* outData, unsigned inLength,bool fromHighbit)
-{
-    unsigned count  = 0;
-    byte msbStorage = 0;
-    byte byteIndex  = 0;
-
-    for (unsigned i = 0; i < inLength; ++i)
-    {
-        if ((i % 8) == 0)
-        {
-            msbStorage = inSysEx[i];
-            byteIndex  = 6;
-        }
-        else
-        {
-            const byte body = inSysEx[i];
-            const byte msb  = ((msbStorage >> (fromHighbit ? byteIndex : 6 - byteIndex) ) & 1) << 7;
-            byteIndex--;
-            outData[count++] = msb | body;
-        }
-    }
-    return count;
-}
 
 /////////////////////////////////////////////////
 // GET A SYSEX REPLY MSG
@@ -604,77 +536,4 @@ void midiStop() {
   Serial.write(0xFC);
 }
 
-
-/////////////////////////////////////////////////
-// Small footprint midi parser
-/////////////////////////////////////////////////
-void midiParser(int readByte) {
-
-  static uint8_t  midiMessage[4];  // First byte is the length
-  static uint8_t  msgLen = 0;
-  static bool     sysExMode = false;
-
-  if ( readByte < 0  ) return false;
-
-  // Real time
-  if  ( readByte >= 0xF8) {
-      Serial.write(readByte);
-      return;
-  }
-
-  // System exclusive . Stay transparent...
-  if  ( readByte >= 0xF0) {
-    if ( readByte == 0xF0 ) sysExMode = true;
-    else sysExMode = false;
-    Serial.write(readByte);
-    return;
-  }
-
-  // Channel messages
-  if ( readByte >= 0x80 ) {
-    sysExMode = false;
-
-    // Capture Note on
-    if ( (readByte & 0xF0) == 0x90 ) {
-      msgLen = 2;
-      midiMessage[0] = msgLen+1;
-      midiMessage[1] = readByte;
-    }
-    else
-
-    // Capture Note off
-    if ( (readByte & 0xF0) == 0x80 ) {
-      msgLen = 2;
-      midiMessage[0] = msgLen+1;
-      midiMessage[1] = readByte;
-    }
-    else
-
-    // Capture CC
-    if ( (readByte & 0xF0) == 0xB0 ) {
-      msgLen = 2;
-      midiMessage[0] = msgLen+1;
-      midiMessage[1] = readByte;
-    }
-
-    // Capture pitch bend
-    if ( (readByte & 0xF0) == 0xE0 ) {
-      msgLen = 2;
-      midiMessage[0] = msgLen+1;
-      midiMessage[1] = readByte;
-    }
-    else Serial.write(readByte);
-  }
-
-  else { // Midi Data from 00 to 0X7F
-
-    // Capture the message eventually
-    if ( msgLen && !sysExMode ) {
-      midiMessage[4-msgLen] = readByte;
-      msgLen--;
-      if (msgLen == 0) ES1processMidiMsg(midiMessage);
-    }
-    else Serial.write(readByte);
-  }
-}
 

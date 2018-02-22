@@ -30,6 +30,7 @@
 #include <arduino.h>
 #include <SoftwareSerial.h>
 #include "mcp4x.h"
+#include "midiXparser.h"
 
 // BorgTribe config
 #define BORGTRIBE_CMD_MODE_KEY            12 // Command mode root Key - C0
@@ -145,15 +146,13 @@ void ES1processNoteOff(uint8_t note, uint8_t velocity, uint8_t channel);
 void ES1processCC(uint8_t second, uint8_t third, uint8_t channel);
 void ES1processPitchBend(uint8_t LSByte, uint8_t MSByte, uint8_t channel);
 void ES1processMidiMsg(uint8_t midiMessage [] );
+void ES1processMidiMsg2(uint8_t midiMessage [] );
 void ES1sendPitchFromNote(uint8_t note,uint8_t channel);
 void borgTribeSetPartFromNote(uint8_t note);
 bool borgTribeCommandExec(uint8_t note,bool isOn);
 void borgTribeSetMode(uint8_t channel);
 void borgTribeFlashPart(uint8_t n,uint8_t channel);
 
-
-unsigned encodeSysEx(const byte* inData, byte* outSysEx, unsigned inLength,bool fromHighbit=true);
-unsigned decodeSysEx(const byte* inSysEx, byte* outData, unsigned inLength,bool fromHighbit=true);
 long getSysEx( byte outData[], unsigned maxBuffLen, unsigned long timeout );
 void midiUniversalDeviceInquiry() ;
 void midiResetAllControllers(uint8_t channel) ;

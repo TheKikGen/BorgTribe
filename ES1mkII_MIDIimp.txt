@@ -1,0 +1,1037 @@
+           KORG ES-1 mkII MIDI IMPLEMENTATION
+
+
+1.TRANSMITTED DATA
+
+1-1 CHANNEL MESSAGES            [H]:Hex,  [D]:Decimal
++--------+---------+-------+--------------------------------------+
+| Status | Second  | Third |           Description                |
+|   [H]  | [H] [D] |  [H]  |                                      |
++--------+---------+-------+--------------------------------------+
+|   8n   | kk (kk) |  vv   | Note Off    vv=0~127                 |
+|   9n   | kk (kk) |  vv   | Note On     vv=1~127                 |
+|   Bn   | 06 (06) |  dd   | Data Entry(MSB)              [TABLE1]|
+|   Bn   | 62 (98) |  nl   | NRPN LSB                     [TABLE1]|
+|   Bn   | 63 (99) |  nm   | NRPN MSB                     [TABLE1]|
+|   Cn   | pp (pp) |  --   | Program Change                [NOTE1]|
++--------+---------+-------+--------------------------------------+
+
+ n : MIDI Channel (0~15)
+
+
+1-2 SYSTEM COMMON MESSAGES
++--------+---------+-------+---------------------------------------------+
+| Status | Second  | Third |               Description                   |
+|   [H]  |   [H]   |  [H]  |                                             |
++--------+---------+-------+---------------------------------------------+
+|   F2   |   pp    |  pp   |  Song Position Pointer                   *1 |
+|   F3   |   ss    |  --   |  Song Select  ss : Song No. = 0~15       *2 |
++--------+---------+-------+---------------------------------------------+
+
+*1  This message is transmitted when in Song mode and the "Clock"
+    is set to "INT".
+*2  This message is transmitted when is Song mode.
+
+
+1-3 SYSTEM REALTIME MESSAGES
++-----------+-----------------------------------------------+
+| Status[H] | Description                                   |
++-----------+-----------------------------------------------+
+|    F8     | Timing Clock                                * |
+|    FA     | Start                                       * |
+|    FB     | Continue                                    * |
+|    FC     | Stop                                        * |
+|    FE     | Active Sensing                                |
++-----------+-----------------------------------------------+
+
+ * :This message is transmitted when the "Clock" is set to "INT".
+
+
+1-4 UNIVERSAL SYSTEM EXCLUSIVE MESSAGES
+
+(1)  DEVICE INQUIRY REPLY
++---------+-----------------------------------------------+
+| Byte[H] |                Description                    |
++---------+-----------------------------------------------+
+|   F0    | Exclusive Status                              |
+|   7E    | Non Realtime Message                          |
+|   0c    | MIDI Channel  ( Device ID )                   |
+|   06    | Inquiry Message                               |
+|   02    | Identity reply                                |
+|   42    | KORG ID              ( Manufacturers ID )     |
+|   57    | ES-1 ID              ( Family ID   (LSB))     |
+|   00    |                      ( Family ID   (MSB))     |
+|   00    |                      ( Member ID   (LSB))     |
+|   00    |                      ( Member ID   (MSB))     |
+|   xx    |                      ( Minor Ver.  (LSB))     |
+|   xx    |                      ( Minor Ver.  (MSB))     |
+|   xx    |                      ( Major Ver.  (LSB))     |
+|   xx    |                      ( Major Ver.  (MSB))     |
+|   F7    | End of Exclusive                              |
++---------+-----------------------------------------------+
+
+  This message is transmitted whenever a INQUIRY MESSAGE REQUEST
+  is received.
+
+
+1-5 SYSTEM EXCLUSIVE MESSAGES
++-------------+--------------------------------------------------+---+---+
+| Function ID |                                                  | R | E |
+|    [Hex]    |                                                  |   |   |
++-------------+--------------------------------------------------+---+---+
+|     40      | CURRENT PATTERN DATA DUMP                        | o |   |
+|     58      | CURRENT SONG DATA DUMP                           | o |   |
+|     4C      | ALL PATTERN DATA DUMP                            | o |   |
+|     57      | ALL SONG DATA DUMP                               | o |   |
+|     51      | GLOBAL DATA DUMP                                 | o |   |
+|     26      | DATA FORMAT ERROR                                |   | o |
+|     23      | DATA LOAD COMPLETED                              |   | o |
+|     24      | DATA LOAD ERROR                                  |   | o |
+|     21      | WRITE COMPLETED                                  |   | o |
+|     22      | WRITE ERROR                                      |   | o |
++-------------+--------------------------------------------------+---+---+
+  Transmitted when
+        R : Request message is received
+        E : Exclusive message is received
+
+
+2.RECOGNIZED RECEIVE DATA
+
+2-1 CHANNEL MESSAGES
++--------+---------+-------+--------------------------------------+
+| Status | Second  | Third |           Description                |
+| [Hex]  | [H] [D] |  [H]  |                                      |
++--------+---------+-------+--------------------------------------+
+|   8n   | kk (kk) |  vv   | Note Off    vv=0~127                 |
+|   9n   | kk (kk) |  00   | Note Off                             |
+|   9n   | kk (kk) |  vv   | Note On     vv=1~127                 |
+|   Bn   | 06 (06) |  dd   | Data Entry(MSB)              [TABLE1]|
+|   Bn   | 62 (98) |  nl   | NRPN LSB                     [TABLE1]|
+|   Bn   | 63 (99) |  nm   | NRPN MSB                     [TABLE1]|
+|   Bn   | 79(121) |  00   | Reset All Controllers                |
+|   Bn   | 7B(123) |  00   | All Note Off                       * |
+|   Cn   | pp (pp) |  --   | Program Change                [NOTE1]|
++--------+---------+-------+--------------------------------------+
+
+ n : MIDI Channel No.(0~15)
+
+ * : This message force Note Off to Audio In Part only.
+     Do not work P1-P7B,Slice part.
+
+2-2 SYSTEM REALTIME MESSAGES
++-----------+-----------------------------------------------+
+| Status[H] | Description                                   |
++-----------+-----------------------------------------------+
+|    F8     | Timing Clock                                * |
+|    FA     | Start                                       * |
+|    FB     | Continue                                    * |
+|    FC     | Stop                                        * |
+|    FE     | Active Sensing                                |
++-----------+-----------------------------------------------+
+
+ * :This message is recognized when the "Clock" is
+    set to "EXT".
+
+
+2-3 UNIVERSAL SYSTEM EXCLUSIVE MESSAGE (NON REALTIME)
+
+(1) DEVICE INQUIRY MESSAGE REQUEST
++---------+----------------------+
+| Byte[H] |    Description       |
++---------+----------------------+
+|   F0    | Exclusive Status     |
+|   7E    | Non Realtime Message |
+|   0c    | MIDI Channel         |
+|   06    | Inquiry Message      |
+|   01    | Inquiry Request      |
+|   F7    | End of Exclusive     |
++---------+----------------------+
+
+
+(2) MASTER VOLUME
++---------+----------------------------------------+
+| Byte[H] |             Description                |
++---------+----------------------------------------+
+|   F0    | Exclusive Status                       |
+|   7F    | Realtime Message                       |
+|   0c    | MIDI Channel  ( Device ID )            |
+|   04    | Device Control ID                      |
+|   01    | Master Volume ID                       |
+|   ll    | Volume Data (LSB)                      |
+|   mm    | Volume Data (MSB)                      |
+|   F7    | End of Exclusive                       |
++---------+----------------------------------------+
+
+
+2-4 SYSTEM EXCLUSIVE MESSAGE
++-------------+-----------------------------------------------+
+| Function ID |               Function                        |
+|    [Hex]    |                                               |
++-------------+-----------------------------------------------+
+|     10      | CURRENT PATTERN DATA DUMP REQUEST             |
+|     1C      | ALL PATTERN DATA DUMP REQUEST                 |
+|     0A      | CURRENT SONG DATA DUMP REQUEST                |
+|     0B      | ALL SONG DATA DUMP REQUEST                    |
+|     0E      | GLOBAL DATA DUMP REQUEST                      |
+|     11      | PATTERN WRITE REQUEST                         |
+|     1A      | SONG WRITE REQUEST                            |
+|     40      | CURRENT PATTERN DATA DUMP                     |
+|     4C      | ALL PATTERN DATA DUMP                         |
+|     51      | GLOBAL DATA DUMP                              |
+|     58      | CURRENT SONG DATA DUMP                        |
+|     57      | ALL SONG DATA DUMP                            |
++-------------+-----------------------------------------------+
+
+All messages received when Sequencer is not running.
+
+
+
+MIDI EXCLUSIVE FORMAT   (R:Receive, T:Transmit)
+
+(1) CURRENT PATTERN DATA DUMP REQUEST                              R
++----------------+--------------------------------------------------+
+|     Byte       |             Description                          |
++----------------+--------------------------------------------------+
+| F0,42,3c,57    | EXCLUSIVE HEADER                                 |
+| 0001 0000 (10) | CURRENT PATTERN DATA DUMP REQUEST      10H       |
+| 1111 0111 (F7) | EOX                                              |
++----------------+--------------------------------------------------+
+
+ When this message is received, the CURRENT PATTERN DATA DUMP(Function:40h)
+ message will be transmitted.
+
+
+(2) ALL PATTERN DATA DUMP REQUEST                                  R
++----------------+--------------------------------------------------+
+|     Byte       |             Description                          |
++----------------+--------------------------------------------------+
+| F0,42,3c,57    | EXCLUSIVE HEADER                                 |
+| 0001 1100 (1C) | ALL PATTERN DATA DUMP REQUEST          1CH       |
+| 1111 0111 (F7) | EOX                                              |
++----------------+--------------------------------------------------+
+
+ When this message is received, the ALL PATTERN DATA DUMP(Function:4Ch)
+ message will be transmitted.
+
+
+(3) CURRENT SONG DATA DUMP REQUEST                                 R
++----------------+--------------------------------------------------+
+|     Byte       |             Description                          |
++----------------+--------------------------------------------------+
+| F0,42,3c,57    | EXCLUSIVE HEADER                                 |
+| 0000 1010 (0A) | CURRENT SONG DATA DUMP REQUEST         0AH       |
+| 1111 0111 (F7) | EOX                                              |
++----------------+--------------------------------------------------+
+
+ When this message is received, the CURRENT SONG DATA DUMP
+ (Function:58h) message will be transmitted.
+
+
+(4) ALL SONG DATA DUMP REQUEST                                     R
++----------------+--------------------------------------------------+
+|     Byte       |             Description                          |
++----------------+--------------------------------------------------+
+| F0,42,3c,57    | EXCLUSIVE HEADER                                 |
+| 0000 1011 (0B) | ALL SONG DATA DUMP REQUEST             0BH       |
+| 1111 0111 (F7) | EOX                                              |
++----------------+--------------------------------------------------+
+
+ When this message is received, the ALL SONG DATA DUMP(Function:57h)
+ message will be transmitted.
+
+
+(5) GLOBAL DATA DUMP REQUEST                                       R
++----------------+--------------------------------------------------+
+|     Byte       |             Description                          |
++----------------+--------------------------------------------------+
+| F0,42,3c,57    | EXCLUSIVE HEADER                                 |
+| 0000 1111 (0E) | GLOBAL DATA DUMP REQUEST               0EH       |
+| 1111 0111 (F7) | EOX                                              |
++----------------+--------------------------------------------------+
+
+ When this message is received, the GLOBAL DATA DUMP(Function:51h)
+ message will be transmitted.
+
+
+(6) PATTERN WRITE REQUEST                                          R
++----------------+--------------------------------------------------+
+|     Byte       |            Description                           |
++----------------+--------------------------------------------------+
+| F0,42,3c,57    | EXCLUSIVE HEADER                                 |
+| 0001 0001 (11) | PATTERN WRITE REQUEST                  11H       |
+| 0000 0000 (00) |                                                  |
+| 0ppp pppp (pp) | Destination Program Number                       |
+| 1111 0111 (F7) | EOX                                              |
++----------------+--------------------------------------------------+
+
+ When this message is received, a WRITE COMPLETED(Function:21h) message
+ or a WRITE ERROR(Function:22h) message will be transmitted.
+
+
+(7) SONG WRITE REQUEST                                             R
++----------------+--------------------------------------------------+
+|     Byte       |            Description                           |
++----------------+--------------------------------------------------+
+| F0,42,3c,57    | EXCLUSIVE HEADER                                 |
+| 0001 1010 (1A) | SONG WRITE REQUEST                     1AH       |
+| 0000 ssss (0s) | Destination Song No(0~15)                        |
+| 1111 0111 (F7) | EOX                                              |
++----------------+--------------------------------------------------+
+
+ When this message is received, a WRITE COMPLETED(Function:21h) message
+ or a WRITE ERROR(Function:22h) message will be transmitted.
+
+
+(8) CURRENT PATTERN DATA DUMP                                    R/T
++----------------+--------------------------------------------------+
+|     Byte       |             Description                          |
++----------------+--------------------------------------------------+
+| F0,42,3c,57    | EXCLUSIVE HEADER                                 |
+| 0100 0000 (40) | CURRENT PATTERN DATA DUMP              40H       |
+| 0ddd dddd (dd) | Data                              [NOTE2][TABLE2]|
+|     :          |  :                                               |
+| 1111 0111 (F7) | EOX                                              |
++----------------+--------------------------------------------------+
+
+ When this message is received, a DATA LOAD COMPLETED(Function:23h)
+ message or a DATA LOAD ERROR(Function:24h) message will be transmitted.
+
+
+(9) ALL PATTERN DATA DUMP                                          T
++----------------+--------------------------------------------------+
+|     Byte       |             Description                          |
++----------------+--------------------------------------------------+
+| F0,42,3c,57    | EXCLUSIVE HEADER                                 |
+| 0100 1100 (4C) | ALL PATTERN DATA DUMP                  4CH       |
+| 0ddd dddd (dd) | Data                              [NOTE2][TABLE2]|
+|     :          |  :                                               |
+| 1111 0111 (F7) | EOX                                              |
++----------------+--------------------------------------------------+
+
+ When this message is received, a DATA LOAD COMPLETED(Function:23h)
+ message or a DATA LOAD ERROR(Function:24h) message will be transmitted.
+
+
+(10) GLOBAL DATA DUMP                                            R/T
++----------------+--------------------------------------------------+
+|     Byte       |             Description                          |
++----------------+--------------------------------------------------+
+| F0,42,3c,57    | EXCLUSIVE HEADER                                 |
+| 0101 0001 (51) | ALL PATTERN DATA DUMP                  51H       |
+| 0ddd dddd (dd) | Data                             [NOTE2][TABLE15]|
+|     :          |  :                                               |
+| 1111 0111 (F7) | EOX                                              |
++----------------+--------------------------------------------------+
+
+ When this message is received, a DATA LOAD COMPLETED(Function:23h)
+ message or a DATA LOAD ERROR(Function:24h) message will be transmitted.
+
+
+(11) CURRENT SONG DATA DUMP                                      R/T
++----------------+--------------------------------------------------+
+|     Byte       |             Description                          |
++----------------+--------------------------------------------------+
+| F0,42,3c,57    | EXCLUSIVE HEADER                                 |
+| 0101 1000 (58) | CURRENT SONG DATA DUMP                 58H       |
+| 0ddd dddd (dd) | Data                             [NOTE2][TABLE11]|
+|     :          |  :                                               |
+| 1111 0111 (F7) | EOX                                              |
++----------------+--------------------------------------------------+
+
+ When this message is received, a DATA LOAD COMPLETED(Function:23h)
+ message or a DATA LOAD ERROR(Function:24h) message will be transmitted.
+
+
+(12) ALL SONG DATA DUMP                                          R/T
++----------------+--------------------------------------------------+
+|     Byte       |             Description                          |
++----------------+--------------------------------------------------+
+| F0,42,3c,57    | EXCLUSIVE HEADER                                 |
+| 0101 0111 (57) | ALL SONG DATA DUMP                     57H       |
+| 0ddd dddd (dd) | Data                             [NOTE2][TABLE12]|
+|     :          |  :                                               |
+| 1111 0111 (F7) | EOX                                              |
++----------------+--------------------------------------------------+
+
+ When this message is received, a DATA LOAD COMPLETED(Function:23h)
+ message or a DATA LOAD ERROR(Function:24h) message will be transmitted.
+
+
+(13) DATA FORMAT ERROR                                             T
++----------------+--------------------------------------------------+
+|     Byte       |             Description                          |
++----------------+--------------------------------------------------+
+| F0,42,3c,57    | EXCLUSIVE HEADER                                 |
+| 0010 0110 (26) | DATA FORMAT ERROR                      26H       |
+| 1111 0111 (F7) | EOX                                              |
++----------------+--------------------------------------------------+
+
+
+(14) DATA LOAD COMPLETED                                           T
++----------------+--------------------------------------------------+
+|     Byte       |             Description                          |
++----------------+--------------------------------------------------+
+| F0,42,3c,57    | EXCLUSIVE HEADER                                 |
+| 0010 0011 (23) | DATA LOAD COMPLETED                    23H       |
+| 1111 0111 (F7) | EOX                                              |
++----------------+--------------------------------------------------+
+
+
+(15) DATA LOAD ERROR                                               T
++----------------+--------------------------------------------------+
+|     Byte       |             Description                          |
++----------------+--------------------------------------------------+
+| F0,42,3c,57    | EXCLUSIVE HEADER                                 |
+| 0010 0100 (24) | DATA LOAD ERROR                        24H       |
+| 1111 0111 (F7) | EOX                                              |
++----------------+--------------------------------------------------+
+
+
+(16) WRITE COMPLETED                                               T
++----------------+--------------------------------------------------+
+|     Byte       |             Description                          |
++----------------+--------------------------------------------------+
+| F0,42,3c,57    | EXCLUSIVE HEADER                                 |
+| 0010 0001 (21) | WRITE COMPLETED                        21H       |
+| 1111 0111 (F7) | EOX                                              |
++----------------+--------------------------------------------------+
+
+
+(17) WRITE ERROR                                                   T
++----------------+--------------------------------------------------+
+|     Byte       |             Description                          |
++----------------+--------------------------------------------------+
+| F0,42,3c,57    | EXCLUSIVE HEADER                                 |
+| 0010 0010 (22) | WRITE ERROR                            22H       |
+| 1111 0111 (F7) | EOX                                              |
++----------------+--------------------------------------------------+
+
+
+NOTE1 : Pattern number
+        pp = 00~3F : A01~64
+             40~7F : B01~64
+
+
+NOTE2:The dump data conversion
+
+    DATA ( 1set = 8bit x 7Byte )
+    b7     ~      b0   b7     ~      b0   b7   ~~    b0   b7     ~      b0
+   +-+-+-+-+-+-+-+-+  +-+-+-+-+-+-+-+-+  +-+-+-~~-+-+-+  +-+-+-+-+-+-+-+-+
+   | | | | | | | | |  | | | | | | | | |  | | |    | | |  | | | | | | | | |
+   +-+-+-+-+-+-+-+-+  +-+-+-+-+-+-+-+-+  +-+-+-~~-+-+-+  +-+-+-+-+-+-+-+-+
+         7n+0               7n+1          7n+2 ~~ 7n+5         7n+6
+
+    MIDI DATA ( 1set = 7bit x 8Byte )
+      b7b7b7b7b7b7b7     b6    ~     b0     b6 ~~    b0     b6    ~     b0
+   +-+-+-+-+-+-+-+-+  +-+-+-+-+-+-+-+-+  +-+-+-~~-+-+-+  +-+-+-+-+-+-+-+-+
+   |0| | | | | | | |  |0| | | | | | | |  |0| |    | | |  |0| | | | | | | |
+   +-+-+-+-+-+-+-+-+  +-+-+-+-+-+-+-+-+  +-+-+-~~-+-+-+  +-+-+-+-+-+-+-+-+
+   7n+6,5,4,3,2,1,0         7n+0          7n+1 ~~ 7n+5         7n+6
+
+
+TABLE1 : NON REGISTERED PARAMETER NUMBER (NRPN)
+         MOTION SEQUENCE/SONG EVENT DESTINATION PARAMETER NUMBER
++---------+-----------------------------+---------------------------------+----+
+| nm  nl  |       Parameter             |   dd (Data Entry(MSB) Value)    | ds |
+| [H] [H] |                             |      (Decimal)                  | [H]|
++---------+-----------------------------+---------------------------------+----+
+| 05  00  | Part1 Pitch                 | 0~127                           | 00 |
+| 05  01  | Part1 Level                 | 0~127                           | 01 |
+| 05  02  | Part1 Filter                | 0~127                           | 02 |
+| 05  03  | Part1 Pan                   | 0~127                           | 03 |
+| 05  04  | Part1 Effect Send           | 0~1                             | 04 |
+| 05  05  | Part1 Roll                  | 0~1                             | 05 |
+| 05  06  | Part1 Reverse               | 0~1                             | 06 |
+| 05  07  | Part1 Motion Seq Type       | 0~2 : Off/Smooth/TrigHold       | -- |
+|         |                             |                                 |    |
+| 05  08  | Part2 Pitch                 | 0~127                           | 08 |
+| 05  09  | Part2 Level                 | 0~127                           | 09 |
+| 05  0A  | Part2 Filter                | 0~127                           | 0A |
+| 05  0B  | Part2 Pan                   | 0~127                           | 0B |
+| 05  0C  | Part2 Effect Send           | 0~1                             | 0C |
+| 05  0D  | Part2 Roll                  | 0~1                             | 0D |
+| 05  0E  | Part2 Reverse               | 0~1                             | 0E |
+| 05  0F  | Part2 Motion Seq Type       | 0~2 : Off/Smooth/TrigHold       | -- |
+|         |                             |                                 |    |
+| 05  10  | Part3 Pitch                 | 0~127                           | 10 |
+| 05  11  | Part3 Level                 | 0~127                           | 11 |
+| 05  12  | Part3 Filter                | 0~127                           | 12 |
+| 05  13  | Part3 Pan                   | 0~127                           | 13 |
+| 05  14  | Part3 Effect Send           | 0~1                             | 14 |
+| 05  15  | Part3 Roll                  | 0~1                             | 15 |
+| 05  16  | Part3 Reverse               | 0~1                             | 16 |
+| 05  17  | Part3 Motion Seq Type       | 0~2 : Off/Smooth/TrigHold       | -- |
+|         |                             |                                 |    |
+| 05  18  | Part4 Pitch                 | 0~127                           | 18 |
+| 05  19  | Part4 Level                 | 0~127                           | 19 |
+| 05  1A  | Part4 Filter                | 0~127                           | 1A |
+| 05  1B  | Part4 Pan                   | 0~127                           | 1B |
+| 05  1C  | Part4 Effect Send           | 0~1                             | 1C |
+| 05  1D  | Part4 Roll                  | 0~1                             | 1D |
+| 05  1E  | Part4 Reverse               | 0~1                             | 1E |
+| 05  1F  | Part4 Motion Seq Type       | 0~2 : Off/Smooth/TrigHold       | -- |
+|         |                             |                                 |    |
+| 05  20  | Part5 Pitch                 | 0~127                           | 20 |
+| 05  21  | Part5 Level                 | 0~127                           | 21 |
+| 05  22  | Part5 Filter                | 0~127                           | 22 |
+| 05  23  | Part5 Pan                   | 0~127                           | 23 |
+| 05  24  | Part5 Effect Send           | 0~1                             | 24 |
+| 05  25  | Part5 Roll                  | 0~1                             | 25 |
+| 05  26  | Part5 Reverse               | 0~1                             | 26 |
+| 05  27  | Part5 Motion Seq Type       | 0~2 : Off/Smooth/TrigHold       | -- |
+|         |                             |                                 |    |
+| 05  28  | Part6A Pitch                | 0~127                           | 28 |
+| 05  29  | Part6A Level                | 0~127                           | 29 |
+| 05  2A  | Part6A Filter               | 0~127                           | 2A |
+| 05  2B  | Part6A Pan                  | 0~127                           | 2B |
+| 05  2C  | Part6A Effect Send          | 0~1                             | 2C |
+| 05  2D  | Part6A Roll                 | 0~1                             | 2D |
+| 05  2E  | Part6A Reverse              | 0~1                             | 2E |
+| 05  2F  | Part6A Motion Seq Type      | 0~2 : Off/Smooth/TrigHold       | -- |
+|         |                             |                                 |    |
+| 05  30  | Part6B Pitch                | 0~127                           | 30 |
+| 05  31  | Part6B Level                | 0~127                           | 31 |
+| 05  32  | Part6B Filter               | 0~127                           | 32 |
+| 05  33  | Part6B Pan                  | 0~127                           | 33 |
+| 05  34  | Part6B Effect Send          | 0~1                             | 34 |
+| 05  35  | Part6B Roll                 | 0~1                             | 35 |
+| 05  36  | Part6B Reverse              | 0~1                             | 36 |
+| 05  37  | Part6B Motion Seq Type      | 0~2 : Off/Smooth/TrigHold       | -- |
+|         |                             |                                 |    |
+| 05  38  | Part7A Pitch                | 0~127                           | 38 |
+| 05  39  | Part7A Level                | 0~127                           | 39 |
+| 05  3A  | Part7A Filter               | 0~127                           | 3A |
+| 05  3B  | Part7A Pan                  | 0~127                           | 3B |
+| 05  3C  | Part7A Effect Send          | 0~1                             | 3C |
+| 05  3D  | Part7A Roll                 | 0~1                             | 3D |
+| 05  3E  | Part7A Reverse              | 0~1                             | 3E |
+| 05  3F  | Part7A Motion Seq Type      | 0~2 : Off/Smooth/TrigHold       | -- |
+|         |                             |                                 |    |
+| 05  40  | Part7B Pitch                | 0~127                           | 40 |
+| 05  41  | Part7B Level                | 0~127                           | 41 |
+| 05  42  | Part7B Filter               | 0~127                           | 42 |
+| 05  43  | Part7B Pan                  | 0~127                           | 43 |
+| 05  44  | Part7B Effect Send          | 0~1                             | 44 |
+| 05  45  | Part7B Roll                 | 0~1                             | 45 |
+| 05  46  | Part7B Reverse              | 0~1                             | 46 |
+| 05  47  | Part7B Motion Seq Type      | 0~2 : Off/Smooth/TrigHold       | -- |
+|         |                             |                                 |    |
+| 05  48  | Slice Pitch                 | 0~127                           | 48 |
+| 05  49  | Slice Level                 | 0~127                           | 49 |
+| 05  4A  | Slice Filter                | 0~127                           | 4A |
+| 05  4B  | Slice Pan                   | 0~127                           | 4B |
+| 05  4C  | Slice Effect Send           | 0~1                             | 4C |
+| 05  4D  | Slice Roll                  | 0~1                             | 4D |
+| 05  4E  | Slice Reverse               | 0~1                             | 4E |
+| 05  4F  | Slice Motion Seq Type       | 0~2 : Off/Smooth/TrigHold       | -- |
+|         |                             |                                 |    |
+| 05  50  | Audio In Speed              | 0~63                            | 50 |
+| 05  51  | Audio In Level              | 0~127                           | 51 |
+| 05  52  | Audio In Filter             | 0~127                           | 52 |
+| 05  53  | Audio In Pan                | 0~127                           | 53 |
+| 05  54  | Audio In Effect Send        | 0~1                             | 54 |
+| 05  55  | Audio In Roll               | 0~1                             | 55 |
+| 05  57  | Audio In Motion Seq Type    | 0~2 : Off/Smooth/TrigHold       | -- |
+|         |                             |                                 |    |
+| 05  60  | Delay Depth                 | 0~127                           | 60 |
+| 05  61  | Delay Time                  | 0~127                           | 61 |
+| 05  62  | Effect Type                 | 0~10                            | 62 |
+| 05  63  | Effect Param 1              | 0~127                           | 63 |
+| 05  64  | Effect Param 2              | 0~127                           | 64 |
+| 05  65  | BPM Delay Sync              | 0~1 : Off/TempoDelay            | 65 |
+| 05  66  | Delay Motion Seq SW         | 0~1                             | 66 |
+| 05  67  | Effect Motion Seq SW        | 0~1                             | 67 |
+| 05  68  | Accent Level                | 0~127                           | 68 |
+|         | Tempo MSB                   | (song event only)               | -- |
+|         | Tempo LSB                   | (song event only)               | -- |
+| 05  6B  | Mute 1                      | Bit6 : 0/1=Mute/Solo            | 6B |
+|         |                             | Bit4~0(AudioIn,P4~P1)=1 : Mute  |    |
+| 05  6C  | Mute 2                      | Bit6 : 0/1=Mute/Solo            | 6C |
+|         |                             | Bit5~0(Slice,P7B~P5)=1 : Mute   |    |
++---------+-----------------------------+---------------------------------+----+
+
+TABLE2 : PATTERN PARAMETERS (1732 bytes)
++---------+-----------------------------+---------------------------------+
+|    0    | Tempo (MSB)                 | 20.0~300.0     iiiiiiiii 20~300 |
+|    1    | Tempo (LSB)                 | iiiiiiiii00ffff     ffff 0~9    |
++---------+-----------------------------+---------------------------------+
+|    b7,6 | Roll Type                   | 0~2 : 2~4                       |
+|    -----+-----------------------------+---------------------------------+
+|  2 b5,4 | Scale/Beat                  | 0~3 :16th,32nd,tri,tr2          |
+|    -----+-----------------------------+---------------------------------+
+|    b1,0 | Pattern Length              | 0~3 : 1~4                       |
++---------+-----------------------------+---------------------------------+
+|    3    | Swing                       | 0~25 : 50~75%                   |
++---------+-----------------------------+---------------------------------+
+|    4    | Effect Type                 | 0~10                   [TABLE16]|
++---------+-----------------------------+---------------------------------+
+|    5    | Effect Edit 1               | 0~127                           |
++---------+-----------------------------+---------------------------------+
+|    6    | Effect Edit 2               | 0~127                           |
++---------+-----------------------------+---------------------------------+
+|    7    | Effect MotionSEQ Stat       | 0~1 : off/on                    |
++---------+-----------------------------+---------------------------------+
+|    8    | Delay Depth                 | 0~127                           |
++---------+-----------------------------+---------------------------------+
+|    9    | Delay Time                  | 0~127                           |
++---------+-----------------------------+---------------------------------+
+|    b1   | Delay BPM Sync Stat         | 0~1 : off/on                    |
+| 10 -----+-----------------------------+---------------------------------+
+|    b0   | Delay MotionSEQ Stat        | 0~1 : off/on                    |
++---------+-----------------------------+---------------------------------+
+|    b0~6 | Accent Level                | 0~127                           |
+| 11 -----+-----------------------------+---------------------------------+
+|    b7   | Accent Motion SEQ Stat      | 0~1 : off/on                    |
++---------+-----------------------------+---------------------------------+
+|  12~75  | Fx Edit 1 MotionSEQ Data    | (64bytes) 0~127 (MSB="1" : Off) |
++---------+-----------------------------+---------------------------------+
+| 76~139  | Fx Edit 2 MotionSEQ Data    | (64bytes) 0~127 (MSB="1" : Off) |
++---------+-----------------------------+---------------------------------+
+|140~203  | Delay Depth MotionSEQ Data  | (64bytes) 0~127 (MSB="1" : Off) |
++---------+-----------------------------+---------------------------------+
+|204~267  | Delay Depth MotionSEQ Data  | (64bytes) 0~127 (MSB="1" : Off) |
++---------+-----------------------------+---------------------------------+
+|     Part Parameters                                                     |
++-----------+-----------------------------+---------------------------------+
+| 268~273   | Part 1 Parameters           | (6bytes)                [TABLE3]|
++-----------+-----------------------------+---------------------------------+
+| 274~281   | Part 1 StepSequence Data    | (8bytes)                [TABLE6]|
++-----------+-----------------------------+---------------------------------+
+| 282~395   | Part 1 MotionSequence Data  | (114bytes)              [TABLE7]|
++-----------+-----------------------------+---------------------------------+
+| 396~401   | Part 2 Parameters           | (6bytes)                [TABLE3]|
++-----------+-----------------------------+---------------------------------+
+| 402~409   | Part 2 StepSequence Data    | (8bytes)                [TABLE6]|
++-----------+-----------------------------+---------------------------------+
+| 410~523   | Part 2 MotionSequence Data  | (114bytes)              [TABLE7]|
++-----------+-----------------------------+---------------------------------+
+| 524~529   | Part 3 Parameters           | (6bytes)                [TABLE3]|
++-----------+-----------------------------+---------------------------------+
+| 530~537   | Part 3 StepSequence Data    | (8bytes)                [TABLE6]|
++-----------+-----------------------------+---------------------------------+
+| 538~651   | Part 3 MotionSequence Data  | (114bytes)              [TABLE7]|
++-----------+-----------------------------+---------------------------------+
+| 652~657   | Part 4 Parameters           | (6bytes)                [TABLE3]|
++-----------+-----------------------------+---------------------------------+
+| 658~665   | Part 4 StepSequence Data    | (8bytes)                [TABLE6]|
++-----------+-----------------------------+---------------------------------+
+| 666~779   | Part 4 MotionSequence Data  | (114bytes)              [TABLE7]|
++-----------+-----------------------------+---------------------------------+
+| 780~785   | Part 5 Parameters           | (6bytes)                [TABLE3]|
++-----------+-----------------------------+---------------------------------+
+| 786~793   | Part 5 StepSequence Data    | (8bytes)                [TABLE6]|
++-----------+-----------------------------+---------------------------------+
+| 794~907   | Part 5 MotionSequence Data  | (114bytes)              [TABLE7]|
++-----------+-----------------------------+---------------------------------+
+| 908~913   | Part 6A Parameters          | (6bytes)                [TABLE3]|
++-----------+-----------------------------+---------------------------------+
+| 914~921   | Part 6A StepSequence Data   | (8bytes)                [TABLE6]|
++-----------+-----------------------------+---------------------------------+
+| 922~1035  | Part 6A MotionSequence Data | (114bytes)              [TABLE7]|
++-----------+-----------------------------+---------------------------------+
+| 1036~1041 | Part 6B Parameters          | (6bytes)                [TABLE3]|
++-----------+-----------------------------+---------------------------------+
+| 1042~1049 | Part 6B StepSequence Data   | (8bytes)                [TABLE6]|
++-----------+-----------------------------+---------------------------------+
+| 1050~1163 | Part 6B MotionSequence Data | (114bytes)              [TABLE7]|
++-----------+-----------------------------+---------------------------------+
+| 1164~1169 | Part 7A Parameters          | (6bytes)                [TABLE3]|
++-----------+-----------------------------+---------------------------------+
+| 1170~1177 | Part 7A StepSequence Data   | (8bytes)                [TABLE6]|
++-----------+-----------------------------+---------------------------------+
+| 1178~1291 | Part 7A MotionSequence Data | (114bytes)              [TABLE7]|
++-----------+-----------------------------+---------------------------------+
+| 1292~1297 | Part 7B Parameters          | (6bytes)                [TABLE3]|
++-----------+-----------------------------+---------------------------------+
+| 1298~1305 | Part 7B StepSequence Data   | (8bytes)                [TABLE6]|
++-----------+-----------------------------+---------------------------------+
+| 1306~1419 | Part 7B MotionSequence Data | (114bytes)              [TABLE7]|
++-----------+-----------------------------+---------------------------------+
+| 1420~1425 | Slice Parameters            | (6bytes)                [TABLE4]|
++-----------+-----------------------------+---------------------------------+
+| 1426~1433 | Slice StepSequence Data     | (8bytes)                [TABLE6]|
++-----------+-----------------------------+---------------------------------+
+| 1434~1547 | Slice MotionSequence Data   | (114bytes)              [TABLE7]|
++-----------+-----------------------------+---------------------------------+
+|   1548    | Reserved                    | (1bytes)                        |
++-----------+-----------------------------+---------------------------------+
+| 1549~1553 | Audio In Parameters         | (5bytes)                [TABLE5]|
++-----------+-----------------------------+---------------------------------+
+| 1554~1561 | Audio In StepSequence Data  | (8bytes)                [TABLE6]|
++-----------+-----------------------------+---------------------------------+
+| 1562~1657 | Audio In MotionSequence Data| (96bytes)               [TABLE8]|
++-----------+-----------------------------+---------------------------------+
+| 1660~1667 | Accent StepSequence         | (8bytes)                [TABLE6]|
++-----------+-----------------------------+---------------------------------+
+| 1668~1731 | Accent MotionSequence Data  | (64bytes)               [TABLE9]|
++-----------+-----------------------------+---------------------------------+
+
+
+TABLE3 : SAMPLE PART PARARMETERS
++---------+-----------------------------+---------------------------------+
+|      b7 | Sample Mono/Stereo          | 0/1 : Mono/Stereo (P1/P3)       |
+|         |                             | 0 (fixed) (another part)        |
+|  0 -----+-----------------------------+---------------------------------+
+|    b0~b6| Sample No.                  | 0~99(Mono), 0~49(Stereo)(P1/P3) |
+|         |                             | 0~99(Mono) (another part)       |
++---------+-----------------------------+---------------------------------+
+|    1    | Filter                      | 0~127                           |
++---------+-----------------------------+---------------------------------+
+|    2    | Level                       | 0~127                           |
++---------+-----------------------------+---------------------------------+
+|    3    | Panpot                      | 0~127(64=center)                |
++---------+-----------------------------+---------------------------------+
+|    4    | Pitch                       | 0~127(64=equal pitch)           |
++---------+-----------------------------+---------------------------------+
+|      b7 | Sample Use                  | 0/1 : use/off                   |
+|     ----+-----------------------------+---------------------------------+
+|      b6 | (Reserved)                  |                                 |
+|     ----+-----------------------------+---------------------------------+
+|      b2 | Reverse                     | 0/1 : off/on                    |
+|    -----+-----------------------------+---------------------------------+
+|  5   b1 | Roll                        | 0/1 : off/on                    |
+|    -----+-----------------------------+---------------------------------+
+|      b0 | Effect                      | 0/1 : off/on                    |
++---------+-----------------------------+---------------------------------+
+
+TABLE4 : SLICE PART PARARMETERS
++---------+-----------------------------+---------------------------------+
+|    0    | Sample No                   | 0~99                            |
++---------+-----------------------------+---------------------------------+
+|    1    | Filter                      | 0~127                           |
++---------+-----------------------------+---------------------------------+
+|    2    | Level                       | 0~127                           |
++---------+-----------------------------+---------------------------------+
+|    3    | Panpot                      | 0~127(64=center)                |
++---------+-----------------------------+---------------------------------+
+|    4    | Pitch                       | 0~127(64=equal pitch)           |
++---------+-----------------------------+---------------------------------+
+|      b7 | Sample Use                  | 0/1 : use/off                   |
+|     ----+-----------------------------+---------------------------------+
+|      b6 | (Reserved)                  |                                 |
+|     ----+-----------------------------+---------------------------------+
+|      b2 | Reverse                     | 0/1 : off/on                    |
+|    -----+-----------------------------+---------------------------------+
+|  5   b1 | Roll                        | 0/1 : off/on                    |
+|    -----+-----------------------------+---------------------------------+
+|      b0 | Effect                      | 0/1 : off/on                    |
++---------+-----------------------------+---------------------------------+
+
+TABLE5 : AUDIO IN PARAMETERS
++---------+-----------------------------+---------------------------------+
+|    0    | Filter                      | 0~127                           |
++---------+-----------------------------+---------------------------------+
+|    1    | Level                       | 0~127                           |
++---------+-----------------------------+---------------------------------+
+|    2    | Panpot                      | 0~127 (64=center)               |
++---------+-----------------------------+---------------------------------+
+|    3    | Gate                        | 0~63                            |
++---------+-----------------------------+---------------------------------+
+|  4   b1 | Roll                        | 0~1 : off/on                    |
+|    -----+-----------------------------+---------------------------------+
+|      b0 | Effect                      | 0~1 : off/on                    |
++---------+-----------------------------+---------------------------------+
+
+TABLE6 : STEP SEQUENCE DATA/ACCENT STEP DATA
++--------+---------------------+-------------------------+
+| offset |    bit position     | value (on Accent Part)  |
++--------+---------------------+-------------------------+
+|   0    | Bit0~7 (Step1  ~8)  | 0/1 =Off(Soft)/On(Hard) |
++--------+---------------------+-------------------------+
+|   1    | Bit0~7 (Step9  ~16) | 0/1 =Off(Soft)/On(Hard) |
++--------+-+-------------------+-------------------------+
+|   2    | Bit0~7 (Step17 ~24) | 0/1 =Off(Soft)/On(Hard) |
++--------+-+-------------------+-------------------------+
+|   3    | Bit0~7 (Step25 ~32) | 0/1 =Off(Soft)/On(Hard) |
++--------+---------------------+-------------------------+
+|   4    | Bit0~7 (Step33 ~40) | 0/1 =Off(Soft)/On(Hard) |
++--------+---------------------+-------------------------+
+|   5    | Bit0~7 (Step41 ~48) | 0/1 =Off(Soft)/On(Hard) |
++--------+---------------------+-------------------------+
+|   6    | Bit0~7 (Step49 ~56) | 0/1 =Off(Soft)/On(Hard) |
++--------+---------------------+-------------------------+
+|   7    | Bit0~7 (Step57 ~64) | 0/1 =Off(Soft)/On(Hard) |
++--------+---------------------+--------------------------+
+
+TABLE7 : SAMPLE PART MOTION SEQUENCE DATA
++---------+-----------------------------+---------------------------------+
+|    0    | Type                        | 0~2 : Off/Smooth/TrigHold       |
++---------+-----------------------------+---------------------------------+
+|    1    | Destination                 | 0~3 : Pitch/Level/Filter/Pan    |
++---------+-----------------------------+---------------------------------+
+|    2    | Knob value (step1)          |                                 |
+|    :    |     :                       | 0~127 (MSB="1" : Off)           |
+|   65    | Knob value (step64)         |                                 |
++---------+-----------------------------+---------------------------------+
+|  66~81  | Reverse SW value (step64)   |                       [TABLE10] |
++---------+-----------------------------+---------------------------------+
+|  82~97  | Effect SW value (step64)    |                       [TABLE10] |
++---------+-----------------------------+---------------------------------+
+|  98~113 | Roll SW value (step64)      |                       [TABLE10] |
++---------+-----------------------------+---------------------------------+
+
+TABLE8: AUDIOIN PART MOTION SEQUENCE DATA
++---------+-----------------------------+---------------------------------+
+|    0    | Type                        | 0~2 : Off/Smooth/TrigHold       |
++---------+-----------------------------+---------------------------------+
+|    1    | Destination                 | 0~3 : Speed/Level/Filter/Pan    |
++---------+-----------------------------+---------------------------------+
+|    2    | Knob value (step1)          |                                 |
+|    :    |     :                       | 0~127 (MSB="1" : Off)           |
+|   65    | Knob value (step64)         |                                 |
++---------+-----------------------------+---------------------------------+
+|  66~81  | Effect SW value (step64)    |                       [TABLE10] |
++---------+-----------------------------+---------------------------------+
+|  82~97  | Roll   SW value (step64)    |                       [TABLE10] |
++---------+-----------------------------+---------------------------------+
+
+
+TABLE9: ACCENT PART MOTION SEQUENCE DATA
++---------+-----------------------------+---------------------------------+
+|    0    | Accent Level value (step1)  |                                 |
+|    :    |     :                       | 0~127 (MSB="1" : Off)           |
+|   63    | Accent Level value (step64) |                                 |
++---------+-----------------------------+---------------------------------+
+
+
+TABLE10 : MOTION SEQUENCE DATA(SWITCH TYPE)
++--------+--------------------+--------------+-------------+
+| offset |   bit position     |    type      |    value    |
++--------+--------------------+--------------+-------------+
+|   0    | Bit0~7 (Step1~8)   |  Motion SW   | 0/1 =Off/On |
++--------+--------------------+--------------+-------------+
+|   1    | Bit0~7 (Step9~16)  |  Motion SW   | 0/1 =Off/On |
++--------+--------------------+--------------+-------------+
+|   2    | Bit0~7 (Step17~24) |  Motion SW   | 0/1 =Off/On |
++--------+--------------------+--------------+-------------+
+|   3    | Bit0~7 (Step25~32) |  Motion SW   | 0/1 =Off/On |
++--------+--------------------+--------------+-------------+
+|   4    | Bit0~7 (Step33~40) |  Motion SW   | 0/1 =Off/On |
++--------+--------------------+--------------+-------------+
+|   5    | Bit0~7 (Step41~48) |  Motion SW   | 0/1 =Off/On |
++--------+--------------------+--------------+-------------+
+|   6    | Bit0~7 (Step49~56) |  Motion SW   | 0/1 =Off/On |
++--------+--------------------+--------------+-------------+
+|   7    | Bit0~7 (Step57~64) |  Motion SW   | 0/1 =Off/On |
++--------+--------------------+--------------+-------------+
+|   8    | Bit0~7 (Step1~8)   | Motion Value | 0/1 =Off/On |
++--------+--------------------+--------------+-------------+
+|   9    | Bit0~7 (Step9~16)  | Motion Value | 0/1 =Off/On |
++--------+--------------------+--------------+-------------+
+|  10    | Bit0~7 (Step17~24) | Motion Value | 0/1 =Off/On |
++--------+--------------------+--------------+-------------+
+|  11    | Bit0~7 (Step25~32) | Motion Value | 0/1 =Off/On |
++--------+--------------------+--------------+-------------+
+|  12    | Bit0~7 (Step33~40) | Motion Value | 0/1 =Off/On |
++--------+--------------------+--------------+-------------+
+|  13    | Bit0~7 (Step41~48) | Motion Value | 0/1 =Off/On |
++--------+--------------------+--------------+-------------+
+|  14    | Bit0~7 (Step49~56) | Motion Value | 0/1 =Off/On |
++--------+--------------------+--------------+-------------+
+|  15    | Bit0~7 (Step57~64) | Motion Value | 0/1 =Off/On |
++--------+--------------------+--------------+-------------+
+
+TABLE11 : CURRENT SONG PARAMETER
++---------+-----------------------------+---------------------------------+
+|  0~517  | Song Parameters             | (518bytes)             [TABLE13]|
++---------+-----------------------------+---------------------------------+
+|     Song Event Data                                                     |
++---------+-----------------------------+---------------------------------+
+| 518~521 | event data (1st)            |                        [TABLE14]|
+| 522~525 | event data (2nd)            |                                 |
+|    :    |                             |                                 |
+| 143314  | event data (35700th(max))   |                                 |
+| ~143317 |                             |                                 |
+|    (max)|                             |                                 |
++---------+-----------------------------+---------------------------------+
+
+
+TABLE12 : ALL SONG DATA
++---------+-----------------------------+---------------------------------+
+|   0~ 517| Song 1 parameter            | (518bytes)             [TABLE13]|
++---------+-----------------------------+---------------------------------+
+| 518~1035| Song 2 parameter            | (518bytes)             [TABLE13]|
++---------+-----------------------------+---------------------------------+
+|1036~1553| Song 3 parameter            | (518bytes)             [TABLE13]|
++---------+-----------------------------+---------------------------------+
+|1554~2071| Song 4 parameter            | (518bytes)             [TABLE13]|
++---------+-----------------------------+---------------------------------+
+|2072~2589| Song 5 parameter            | (518bytes)             [TABLE13]|
++---------+-----------------------------+---------------------------------+
+|2590~3107| Song 6 parameter            | (518bytes)             [TABLE13]|
++---------+-----------------------------+---------------------------------+
+|3108~3625| Song 7 parameter            | (518bytes)             [TABLE13]|
++---------+-----------------------------+---------------------------------+
+|3626~4143| Song 8 parameter            | (518bytes)             [TABLE13]|
++---------+-----------------------------+---------------------------------+
+|4144~4661| Song 9 parameter            | (518bytes)             [TABLE13]|
++---------+-----------------------------+---------------------------------+
+|4662~5179| Song 10 parameter           | (518bytes)             [TABLE13]|
++---------+-----------------------------+---------------------------------+
+|5180~5697| Song 11 parameter           | (518bytes)             [TABLE13]|
++---------+-----------------------------+---------------------------------+
+|5698~6215| Song 12 parameter           | (518bytes)             [TABLE13]|
++---------+-----------------------------+---------------------------------+
+|6216~6733| Song 13 parameter           | (518bytes)             [TABLE13]|
++---------+-----------------------------+---------------------------------+
+|6734~7251| Song 14 parameter           | (518bytes)             [TABLE13]|
++---------+-----------------------------+---------------------------------+
+|7252~7769| Song 15 parameter           | (518bytes)             [TABLE13]|
++---------+-----------------------------+---------------------------------+
+|7770~8287| Song 16 parameter           | (518bytes)             [TABLE13]|
++---------+-----------------------------+---------------------------------+
+|    Song Event Data                                                      |
+|       (Event Size is total number of event of All Songs.)               |
++---------+-----------------------------+---------------------------------+
+|8288~8291| event data (1st)            |                        [TABLE14]|
+|8292~8295| event data (2nd)            |                                 |
+|    :    |                             |                                 |
+|151084   | event data (35700th(max))   |                                 |
+|  ~151087|                             |                                 |
+|    (max)|                             |                                 |
++---------+-----------------------------+---------------------------------+
+
+
+TABLE13 : SONG PARAMETERS
++---------+-----------------------------+---------------------------------+
+|    0    | Tempo (MSB)                 | 20.0~300.0     iiiiiiiii 20~300 |
+|    1    | Tempo (LSB)                 | iiiiiiiii00ffff     ffff .0~.9  |
++---------+-----------------------------+---------------------------------+
+|    2    | step end data               | 0~255=1stPosition~256thPosition |
++---------+-----------------------------+---------------------------------+
+|    3    | (dummy)                     |                                 |
++---------+-----------------------------+---------------------------------+
+|    4    | number of event (MSB)       | 0~35700                         |
+|    5    | number of event (LSB)       |                                 |
++---------+-----------------------------+---------------------------------+
+|     Position Data                                                       |
++---------+-----------------------------+---------------------------------+
+|    6    | Pattern Number (1st)        |                                 |
+|    :    |      :                      | 0~127 = A01 ~ B64               |
+|   261   | Pattern Number (256th)      |                                 |
++---------+-----------------------------+---------------------------------+
+|   262   | dummy                       |                                 |
+|    :    |      :                      |                                 |
+|   516   | dummy                       |                                 |
++---------+-----------------------------+---------------------------------+
+
+
+TABLE14 : SONG EVENT DATA
++---------+-----------------------------+---------------------------------+
+|    0    | Position Number             | 0~255                           |
++---------+-----------------------------+---------------------------------+
+|      b7 | Enable Data                 | 0/1 : Enable/Disable            |
+|    -----+-----------------------------+---------------------------------|
+| 1  b5,4 | Measure Number              | 0~3 : 1~4                       |
+|    -----+-----------------------------+---------------------------------|
+|    b3~0 | Step Number                 | 0~15 :1~16                      |
+|    -----+-----------------------------+---------------------------------+
+|      b6 | if "Control/Note" is Control                                  |
+|         | ----------------------------+---------------------------------+
+|         |   if "Destination" is TempoMSB                                |
+|         |   --------------------------+---------------------------------+
+|         |     Tempo value (b15)       |                              *2 |
+|         |   --------------------------+---------------------------------+
+|         |   if "Destination" is not TempoMSB,TempoLSB                   |
+|         |   --------------------------+---------------------------------+
+|         |     not use                 |                                 |
+|         | ----------------------------+---------------------------------+
+|         | if "Control/Note" is Note                                     |
+|         | ----------------------------+---------------------------------+
+|         |     not use                 |                                 |
++---------+-----------------------------+---------------------------------+
+| 2    b7 | Control/Note                | 0/1 : Control / Note            |
+|  -------+-----------------------------+---------------------------------+
+|    if "Control/Note" is Control                                         |
+|    -----+-----------------------------+---------------------------------+
+|    b6~0 | Destination (ds)            |                         [TABLE1]|
+|  -------+-----------------------------+---------------------------------+
+|    if "Control/Note" is Note                                            |
+|    -----+-----------------------------+---------------------------------+
+|    b6~4 | not used                    |                                 |
+|    -----+-----------------------------+---------------------------------+
+|    b3~0 | Part Number                 | 0~11                         *1 |
++---------+-----------------------------+---------------------------------+
+| 3       | if "Control/Note" is Control                                  |
+|         | ----------------------------+---------------------------------+
+|         |   if "Destination" is TempoMSB                                |
+|         | ----------------------------+---------------------------------+
+|         |     Tempo Value (b14~7)     |                                 |
+|         | ----------------------------+---------------------------------+
+|         |   if "Destination" is TempoLSB                                |
+|         | ----------------------------+---------------------------------+
+|         |     Tempo Value (b6~0)      | b7->0                           |
+|         | ----------------------------+---------------------------------+
+|         |   if "Destination" is not Tempo                               |
+|         | ----------------------------+---------------------------------+
+|         |   Value                     | 0~127                           |
+|         | ----------------------------+---------------------------------+
+|         | if "Control/Note" is Note                                     |
+|         | ----------------------------+---------------------------------+
+|         |   not used                  |                                 |
++---------+-----------------------------+---------------------------------+
+
+*1 0~4 : Part1~Part5
+   5   : Part6A
+   6   : Part6B
+   7   : Part7A
+   8   : Part7B
+   9   : Slice
+   10  : Audio In
+
+
+TABLE15 : GLOBAL PARAMETERS
++---------+-----------------------------+---------------------------------+
+|    0    | Midi CH                     | 0~15(1CH~16CH)                  |
++---------+-----------------------------+---------------------------------+
+|    1    | Metronome                   | 0~4 : Off/r-0/r-1/r-2/On        |
++---------+-----------------------------+---------------------------------+
+|    2    | Write Protect               | 0/1 : off/on                    |
++---------+-----------------------------+---------------------------------+
+|    3    | Part 1 Note Number          | 0~127 : C-1~G9                  |
++---------+-----------------------------+---------------------------------+
+|    4    | Part 2 Note Number          | 0~127 : C-1~G9                  |
++---------+-----------------------------+---------------------------------+
+|    5    | Part 3 Note Number          | 0~127 : C-1~G9                  |
++---------+-----------------------------+---------------------------------+
+|    6    | Part 4 Note Number          | 0~127 : C-1~G9                  |
++---------+-----------------------------+---------------------------------+
+|    7    | Part 5 Note Number          | 0~127 : C-1~G9                  |
++---------+-----------------------------+---------------------------------+
+|    8    | Part 6A Note Number         | 0~127 : C-1~G9                  |
++---------+-----------------------------+---------------------------------+
+|    9    | Part 6B Note Number         | 0~127 : C-1~G9                  |
++---------+-----------------------------+---------------------------------+
+|   10    | Part 7A Note Number         | 0~127 : C-1~G9                  |
++---------+-----------------------------+---------------------------------+
+|   11    | Part 7B Note Number         | 0~127 : C-1~G9                  |
++---------+-----------------------------+---------------------------------+
+|   12    | Slice Note Number           | 0~127 : C-1~G9                  |
++---------+-----------------------------+---------------------------------+
+|   13    | Audio In Note Number        | 0~127 : C-1~G9                  |
++---------+-----------------------------+---------------------------------+
+|   14    | Clock                       | 0/1 : Int/Ext                   |
++---------+-----------------------------+---------------------------------+
+|   15    | Audio In Mode               | 0/1 : Mono/Stereo               |
++---------+-----------------------------+---------------------------------+
+|  16~63  | dummy                       |                                 |
++---------+-----------------------------+---------------------------------+
+|  64~127 | Pattern Set Parameters      | 0~127 : A01~B64                 |
++---------+-----------------------------+---------------------------------+
+
+TABLE 16:EFFECT Type
++--------------------------------------+
+|    0:Reverb                          |
+|    1:Flanger/Chorus                  |
+|    2:Phaser                          |
+|    3:Ring Modulation                 |
+|    4:Pitch Shifter                   |
+|    5:Compressor                      |
+|    6:Distortion                      |
+|    7:Decimator                       |
+|    8:Isolator                        |
+|    9:Resonance Filter                |
+|   10:Mod Delay                       |
++--------------------------------------+
+
+
