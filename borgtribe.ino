@@ -116,10 +116,5 @@ void loop() {
       ES1processMidiMsg(midiInParser.getMidiMsg()) ;
     else if( ! midiInParser.isByteCaptured()) 
         Serial.write(midiInParser.getByte());
-  } else
-  // MIDI out (listening note on only here)
-  if (midiSerial.available() ) {
-    if ( midiOutParser.parse(  midiSerial.read() ) ) 
-        borgTribeSetPartFromNote(midiOutParser.getMidiMsg()[1]) ;
   }
 }
