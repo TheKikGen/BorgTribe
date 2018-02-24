@@ -48,6 +48,33 @@ unsigned borgTribeAnalogPotVal = 0;
 unsigned borgTribePrevAnalogPotVal = 0; 
 uint8_t  sysExBuffer[256];
 
+// PITCH
+
+// This specifies the playback pitch of the sample. Raising the pitch will speed up the playback, and lowering it will slow down the
+// playback. The pitch can be adjusted over a range of +/–2 octaves.
+// For the Audio In part, this will function as a gate time (duration of the sound) synchronized to the temp
+
+byte NOTE_TO_POTVAL[] = {
+// C     c#    D     d#    E    F     f#   G     g#    A     a#    B
+// x     x     x           x    x            x           x          x
+   0,    4,    8,    12,   15,  19,   23,   26,   30,   34,  37,   41,
+  44,   51,   56,    62,   68,  73,   79,   85,   90,   96,  101,  107,
+ 128,  143,  148,   154,  160, 166,  171,  177,  183,  189,  194,  200,
+ 206,  210,  214,   217,  221, 225,  229,  233,  236,  240,  244,  248,
+ 255
+};
+
+const byte NOTE_TO_CCPITCH[] = {
+// C     c#    D     d#    E    F     f#   G     g#    A     a#    B
+   0,    2,    4,    6,    8,  10,   12,   14,   16,   18,   20,   22,
+  24,   27,   30,   33,   36,  39,   42,   45,   48,   51,   54,   57,
+  64,   70,   73,   76,   79,  82,   85,   88,   91,   94,   97,  100,
+ 103,  105,  107,  109,  111, 113,  115,  117,  119,  121,  123,  125,
+127
+};
+
+byte PITCH_TO_POTVAL[128];
+
 /////////////////////////////////////////////////
 // ES1 SYSEX  Get midi channel, and global parameters
 /////////////////////////////////////////////////
@@ -314,11 +341,24 @@ bool borgTribeCommandExec(uint8_t note,uint8_t channel,bool isOn){
        }
        break;                                  
 
+    case BORGTRIBE_CMD_AUTO_TUNE_KEY:
+       if (isOn ) {
+          if (commandToConfirm == BORGTRIBE_CMD_AUTO_TUNE_KEY ) {
+              commandToConfirm = -1;
+              borgTribeAutoTune();              
+              borgTribeFlashPart(2,channel ); 
+          } else {
+            commandToConfirm = BORGTRIBE_CMD_AUTO_TUNE_KEY;
+            borgTribeFlashPart(5,channel );
+          }
+       }
+       break;                                  
+
     case BORGTRIBE_CMD_RESET_BORGTRIBE:
        if (isOn ) {
           if (commandToConfirm == BORGTRIBE_CMD_RESET_BORGTRIBE ) {
               commandToConfirm = -1;
-              borgTribeReset();
+              borgTribeReset();              
               //(....) software reset.....
  
           } else {
@@ -334,7 +374,109 @@ bool borgTribeCommandExec(uint8_t note,uint8_t channel,bool isOn){
   return true;
 }
 
+/////////////////////////////////////////////////
+// BorgTribe autotune
+// Adjust the tune pot table from the midi pitch notes table
+// NOT REALLY EFFICIENT.....NOT IMPLEMENTED.
+/////////////////////////////////////////////////
+void borgTribeAutoTune() {
 
+
+  int pos=0;
+  uint8_t j=0;
+  uint8_t count=0;
+  uint8_t value = 0;
+  unsigned long currentMillis;
+ 
+  delay(5000);
+
+  memset(PITCH_TO_POTVAL,0xFF,sizeof(PITCH_TO_POTVAL)); 
+  midiXparser midiOutParser(midiXparser::controlChangeMsk,ES1GlobalParameters.midiGlobalParameters.MidiCH ) ;  
+
+  mcp4251.set(0);
+  delay(10);
+  mcp4251.set(255);
+  
+  // Clear CC
+  currentMillis = millis();
+  while ( midiSerial.available() && millis() < currentMillis + 500 ) 
+         midiOutParser.parse(  midiSerial.read() ) ;                     
+
+  for ( pos = 0; pos <=255 ; pos++ )  {
+
+     mcp4251.set(pos);
+     delay(10);
+     Serial.write(0x90+ES1GlobalParameters.midiGlobalParameters.MidiCH);Serial.write(ROOT_KEY-12 + borgTribeCurrentPart);Serial.write(100);
+     currentMillis = millis(); 
+     while ( millis() < (currentMillis + 50) ) {
+        if (midiSerial.available() ) {
+          if ( midiOutParser.parse(  midiSerial.read() ) ) {
+            if (midiOutParser.getMidiMsg()[1] == 0x06) {                
+              value = midiOutParser.getMidiMsg()[2];
+              // Set the pos on the average pos if already filled
+              //if ( POTVAL_PITCH[value] == 0xFF ) POTVAL_PITCH[value] = pos;
+                // else POTVAL_PITCH[value] = round((POTVAL_PITCH[value] + pos) / 2.0);
+              
+              PITCH_TO_POTVAL[value] = pos;
+              break;
+            }
+          }
+        }  
+     }
+  }
+
+  // Pass 2 : fine tuning
+
+  // Clear CC
+    pos = 0;
+  mcp4251.set(128);
+  delay(10);
+
+  
+  currentMillis = millis();
+  while ( midiSerial.available() && millis() < currentMillis + 500 ) 
+         midiOutParser.parse(  midiSerial.read() ) ;                     
+  
+
+ 
+  while ( pos <126) { 
+    pos = 0 ;
+    for (j=0; j<sizeof(PITCH_TO_POTVAL) ; j++  ) {
+    
+       mcp4251.set(PITCH_TO_POTVAL[j]);
+       delay(10);
+        Serial.write(0x90+ES1GlobalParameters.midiGlobalParameters.MidiCH);Serial.write(ROOT_KEY-12 + borgTribeCurrentPart);Serial.write(100);
+       value = 0;  
+       currentMillis = millis(); 
+       while ( millis() < (currentMillis + 50) ) {
+          if (midiSerial.available() ) {
+            if ( midiOutParser.parse(  midiSerial.read() ) ) {
+              if (midiOutParser.getMidiMsg()[1] == 0x06) {                
+                value = 1;
+                pos++;
+                // Set the pos on the average pos if already filled
+                //if ( POTVAL_PITCH[value] == 0xFF ) POTVAL_PITCH[value] = pos;
+                  // else POTVAL_PITCH[value] = round((POTVAL_PITCH[value] + pos) / 2.0);              
+                break;
+              }
+            }
+          }  
+       }
+       if (value = 0) PITCH_TO_POTVAL[j]++;   
+    }
+    // Force 0 to restart 
+    PITCH_TO_POTVAL[0]= 0;   
+ }
+  
+ 
+  for ( j = 0; j <= sizeof(NOTE_TO_CCPITCH) ; j++ )  {
+      
+      value = NOTE_TO_CCPITCH[j];
+      NOTE_TO_POTVAL[j] = PITCH_TO_POTVAL[value];
+      
+  }
+  
+}
 /////////////////////////////////////////////////
 // Specific ES1 process for Note on
 /////////////////////////////////////////////////
@@ -342,6 +484,8 @@ void ES1processNoteOn(uint8_t note, uint8_t velocity, uint8_t channel) {
   unsigned long currentMillis = millis();
 
   uint8_t velo;
+  int value;
+  
   
   borgTribeSetPartFromNote(note);
 
@@ -377,7 +521,12 @@ void ES1processNoteOn(uint8_t note, uint8_t velocity, uint8_t channel) {
 
   // Move the digital potentiometer to the right pitch
   if ( borgTribeMode == BORGTRIBE_POTPITCHEDNOTE_MODE ) {
+//      value= NOTE_TO_POTVAL[note-ROOT_KEY]-mcp4251.get() ;  
+//      if ( abs(value) < 4) mcp4251.set( value >0?mcp4251.get()-4:mcp4251.get()+4  );
+//      delay(1);     
       mcp4251.set(NOTE_TO_POTVAL[note-ROOT_KEY]);
+      delay(2);
+      Serial.write(0x90+channel);Serial.write(ROOT_KEY-12 + borgTribeCurrentPart);Serial.write(velo);
       return;      
   }
   
