@@ -17,10 +17,7 @@ To do this, I chose to develop on an Arduino Nano board, because of its small fa
 
 The MCP4151 uses SPI, an that can be tricky on the Nano : notably the fact that MISO (pin 12) must be pulled up to MOSI (look at the 1K resistor).  That was working perfectly on the Uno proto board without that, so I suppose it is mandatory when using SPI on the Nano (whatever, it is required by SPI usually).
 
-As you can see on the schematic provided in the GIT repository, the analog PITCH pot wiper pad is connected to the Nano Analog2 pin and disconnected from the ES1.  So, the Nano is able to read pot values and to resend them to the MCP 4151 digital potentiometer.  That was the first step of this project : be transparent, as shown on that video : 
-
-<iframe allowfullscreen="" class="YOUTUBE-iframe-video" data-thumbnail-src="https://i.ytimg.com/vi/-8Kga-2tmuo/0.jpg" frameborder="0" height="266" src="https://www.youtube.com/embed/-8Kga-2tmuo?feature=player_embedded" width="320">
-</iframe>
+As you can see on the schematic also provided in the GIT repository, the analog PITCH pot wiper pad is connected to the Nano Analog2 pin and disconnected from the ES1.  So, the Nano is able to read pot values and to resend them to the MCP 4151 digital potentiometer.  That was the first step of this project : be transparent, as shown on that video : https://www.youtube.com/watch?v=-8Kga-2tmuo
 
 ## Software
 
@@ -62,7 +59,8 @@ This command clears the current pattern, as there is no clear pattern on the Ele
 #### Auto tune Key  : C0 + F0#
 
 This command attempts an autotuning by comparing default internal note/tune tables with midi CC pitch values. It is necessary to confirm the command by sending it a second time when the parts are flashing.
-=> Still experimental.
+**Still experimental**
+
 
 #### Reset BorgTribe : C0 + B0
 
