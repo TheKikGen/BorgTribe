@@ -1,6 +1,9 @@
 # BorgTribe
 A Korg Electribe ES1 mod to enable pitch recording from a midi keyboard
 
+<a href="https://3.bp.blogspot.com/-L-vnz9OfxlU/WqVO8Esta4I/AAAAAAAAANc/KfdmPknEjdE51xwFZMG_CuVDMzH1P7KtQCLcBGAs/s1600/Electribe-ES1-770x433.png" imageanchor="1" style="clear: left; float: left; margin-bottom: 1em; margin-right: 1em;"><img border="0" data-original-height="433" data-original-width="770" height="179" src="https://3.bp.blogspot.com/-L-vnz9OfxlU/WqVO8Esta4I/AAAAAAAAANc/KfdmPknEjdE51xwFZMG_CuVDMzH1P7KtQCLcBGAs/s320/Electribe-ES1-770x433.png" width="320" /></a>
+
+
 I own an Electribe Korg for some time and I have to say that I really like this gear.  First because it is fast to handle, and second because it has a very special sound despite its relative low sampling rate comparing to current standard. I still use it in 2018, in the middle of much more elaborate gears (sometime too much elaborate !).
 
 The Electribe ES1 is however quite limited in functionality, and on one point in particular: its inability to play a sample chromatically with an external midi keyboard.  Close to my other Volkaoss project, I quickly realized a MIDI notes to Electribe ES1 Pitch Control changes with an Arduino Uno board. Everything worked perfectly, and I was able to play a sample chromatically with an external Midi keyboard BUT....
@@ -10,9 +13,14 @@ But to my surprise the Electribe recording mode does not take into account a pit
 ## Harware
 To do this, I chose to develop on an Arduino Nano board, because of its small factor, and to use a Microchip MCP4151 digital potentiometer, with a resolution of 256 steps, which is enough to manage 127 positions on the PITCH potentiometer. 
 
+<a href="https://2.bp.blogspot.com/-O7bXoyTK9XA/WqVa-vA7vYI/AAAAAAAAAOA/q2avoGy6UwYW0HHfWyhIHsk2GISHa2fwwCLcBGAs/s1600/borgtribe_schematic.jpg" imageanchor="1" style="clear: left; float: left; margin-bottom: 1em; margin-right: 1em;"><img border="0" data-original-height="1268" data-original-width="1518" height="534" src="https://2.bp.blogspot.com/-O7bXoyTK9XA/WqVa-vA7vYI/AAAAAAAAAOA/q2avoGy6UwYW0HHfWyhIHsk2GISHa2fwwCLcBGAs/s640/borgtribe_schematic.jpg" width="640" /></a>
+
 The MCP4151 uses SPI, an that can be tricky on the Nano : notably the fact that MISO (pin 12) must be pulled up to MOSI (look at the 1K resistor).  That was working perfectly on the Uno proto board without that, so I suppose it is mandatory when using SPI on the Nano (whatever, it is required by SPI usually).
 
-As you can see on the schematic provided in the GIT repository, the analog PITCH pot wiper pad is connected to the Nano Analog2 pin and disconnected from the ES1.  So, the Nano is able to read pot values and to resend them to the MCP 4151 digital potentiometer.  That was the first step of this project : be transparent, as shown on that video : https://www.youtube.com/watch?v=-8Kga-2tmuo
+As you can see on the schematic provided in the GIT repository, the analog PITCH pot wiper pad is connected to the Nano Analog2 pin and disconnected from the ES1.  So, the Nano is able to read pot values and to resend them to the MCP 4151 digital potentiometer.  That was the first step of this project : be transparent, as shown on that video : 
+
+<iframe allowfullscreen="" class="YOUTUBE-iframe-video" data-thumbnail-src="https://i.ytimg.com/vi/-8Kga-2tmuo/0.jpg" frameborder="0" height="266" src="https://www.youtube.com/embed/-8Kga-2tmuo?feature=player_embedded" width="320">
+</iframe>
 
 ## Software
 
@@ -45,7 +53,7 @@ Mode alternate each time you send the command.  The parts will flash a number of
 
 #### Setting full velocity : C0 + E0
 
-This disable the velocity sensitivity and set the value by default to 127 (max).  This reproduce the Electribe pad behaviour.
+This toggle the velocity sensitivity and set the value by default to 127 (max).  This reproduce the Electribe pad behaviour.
 
 #### Clear current pattern : C0 + F0
 
