@@ -134,7 +134,6 @@ void borgTribeSetMode(uint8_t channel);
 void borgTribeFlashPart(uint8_t n,uint8_t channel);
 void borgTribeAutoTune();
 
-long getSysEx( byte outData[], unsigned maxBuffLen, unsigned long timeout );
 void midiUniversalDeviceInquiry() ;
 void midiResetAllControllers(uint8_t channel) ;
 void midiAllNotesOff(uint8_t channel);

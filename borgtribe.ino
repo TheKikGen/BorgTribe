@@ -28,8 +28,9 @@
 */
 
 #include <SoftwareSerial.h>
+#include <midiXparser.h>
+
 #include "mcp4x.h"
-#include "midiXparser.h"
 #include "ES1Midi.h"
 
 #define RX 2
@@ -44,9 +45,8 @@ MCP4XXX mcp4251;
 float r=0; // Analog ratio
 unsigned maxVal = 0;
 
-// Midi parsers
+// Midi IN parser
 midiXparser midiInParser;
-midiXparser midiOutParser;
 
 
 extern ES1GlobalParameters_t ES1GlobalParameters;
@@ -76,14 +76,12 @@ void setup() {
   // Set parameters for BorgTribe (notes number)
   while ( ! ES1setGlobalParameters() ) delay(2000);
 
-  // Set midi parsers  
+  // Set midi IN parser  
   midiInParser.setMidiChannelFilter(ES1GlobalParameters.midiGlobalParameters.MidiCH);
-  midiInParser.setChannelMsgFilterMask(midiXparser::noteOffMsk | midiXparser::noteOnMsk 
+  midiInParser.setChannelVoiceMsgFilter(midiXparser::noteOffMsk | midiXparser::noteOnMsk 
                                 | midiXparser::controlChangeMsk | midiXparser::pitchBendMsk);
 
-  midiOutParser.setMidiChannelFilter(ES1GlobalParameters.midiGlobalParameters.MidiCH);
-  midiOutParser.setChannelMsgFilterMask(midiXparser::noteOnMsk);
-
+ 
   // Digital potentiometer init
   mcp4251.begin();
   maxVal = mcp4251.max_value()-1;

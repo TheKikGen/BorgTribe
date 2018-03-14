@@ -46,7 +46,8 @@ bool     borgTribeVelocityOn = false;
 uint8_t  borgTribeCurrentPart = 0;
 unsigned borgTribeAnalogPotVal = 0;
 unsigned borgTribePrevAnalogPotVal = 0; 
-uint8_t  sysExBuffer[256];
+
+#define  SYSEX_BUFFER_SIZE  256
 
 // PITCH
 
@@ -64,7 +65,7 @@ byte NOTE_TO_POTVAL[] = {
  255
 };
 
-const byte NOTE_TO_CCPITCH[] = {
+const byte NOTE_TO_CCPITCH[]  = {
 // C     c#    D     d#    E    F     f#   G     g#    A     a#    B
    0,    2,    4,    6,    8,  10,   12,   14,   16,   18,   20,   22,
   24,   27,   30,   33,   36,  39,   42,   45,   48,   51,   54,   57,
@@ -81,27 +82,44 @@ byte PITCH_TO_POTVAL[128];
 bool ES1getGlobalParameters(unsigned int timeout) {
     int channel = -1;
     unsigned long len=0;
-  
+    unsigned long currentMillis = millis();
+    uint8_t *sysExBuffer=NULL;
+    
+    midiXparser midiOutParser;
+    bool msg;
+
+    midiOutParser.setSysExFilter(true,SYSEX_BUFFER_SIZE);
     midiUniversalDeviceInquiry();
-    len = getSysEx( sysExBuffer, sizeof(sysExBuffer), timeout );
+  
+    // Wait for SYSEX msg
+    currentMillis = millis();
+    while ( millis()  < (currentMillis + timeout)  ) {            
+        if ( midiSerial.available() && ( msg = midiOutParser.parse( midiSerial.read() ) ) ) break;
+    }
+
+    if (!msg) return false;
+    
+    len = midiOutParser.getSysExMsgLen() ;
+    sysExBuffer = midiOutParser.getSysExMsg();
+    
  
-    if (sysExBuffer[1] == 0x7E ) {
-      if (len == 15 ) {
+    if (sysExBuffer[0] == 0x7E ) {
+      if (len == 13 ) {
 
       // Device Inquiry
       // Example of reply :
-      // F0 7E  00 (<= Current MIDI channel) 06 02 42 (KorkID) 57 (ES-1) 00 00 00 00 01 (Major version) 00 F7
-          if (    sysExBuffer[3] == 0x06
-               && sysExBuffer[4] == 0x02
-               && sysExBuffer[5] == SYSEX_KORG_ID
-               && sysExBuffer[6] == SYSEX_ES1_ID
+      // (F0) 7E  00 (<= Current MIDI channel) 06 02 42 (KorkID) 57 (ES-1) 00 00 00 00 01 (Major version) 00 (F7)
+          if (    sysExBuffer[2] == 0x06
+               && sysExBuffer[3] == 0x02
+               && sysExBuffer[4] == SYSEX_KORG_ID
+               && sysExBuffer[5] == SYSEX_ES1_ID
              )
 
              {
               // We are sure here we are talking to the ES-1
               // Save the current channel, so channel can be set on the Electribe itself
-              ES1GlobalParameters.midiGlobalParameters.MidiCH  = sysExBuffer[2] ;
-              ES1GlobalParameters.version = sysExBuffer[12];
+              ES1GlobalParameters.midiGlobalParameters.MidiCH  = sysExBuffer[1] ;
+              ES1GlobalParameters.version = sysExBuffer[11];
              }
       }
       else return false;
@@ -111,16 +129,26 @@ bool ES1getGlobalParameters(unsigned int timeout) {
    Serial.write(0xF0);  Serial.write(0x42);   
    Serial.write(0x30 + ES1GlobalParameters.midiGlobalParameters.MidiCH);
    Serial.write(0x57);   Serial.write(0x0E);   Serial.write(0xF7);
-   len = getSysEx( sysExBuffer, sizeof(sysExBuffer), timeout );
+
+   // Wait for SYSEX msg
+   currentMillis = millis();
+   while ( millis()  < (currentMillis + timeout)  ) {            
+        if ( midiSerial.available() && ( msg = midiOutParser.parse( midiSerial.read() ) ) ) break;
+   }
+
+   if (!msg) return false;
+    
+   len = midiOutParser.getSysExMsgLen() ;
+   sysExBuffer = midiOutParser.getSysExMsg();
    
-   if (     sysExBuffer[1] == 0x42
-        &&  sysExBuffer[2] == (0x30 + ES1GlobalParameters.midiGlobalParameters.MidiCH )
-        &&  sysExBuffer[3] == 0x57 ) 
+   if (     sysExBuffer[0] == 0x42
+        &&  sysExBuffer[1] == (0x30 + ES1GlobalParameters.midiGlobalParameters.MidiCH )
+        &&  sysExBuffer[2] == 0x57 ) 
    {
       // GLOBAL DATA DUMP REQUEST
-      if ( sysExBuffer[4]  == 0x51 ) {
+      if ( sysExBuffer[3]  == 0x51 ) {
           // Decode Sysex Message
-        midiXparser::decodeSysEx(&sysExBuffer[5],(byte *)&ES1GlobalParameters.midiGlobalParameters , len - 6,false);
+        midiXparser::decodeSysEx(&sysExBuffer[4],(byte *)&ES1GlobalParameters.midiGlobalParameters , len - 4,false);
         return true;        
       }
    } 
@@ -136,7 +164,11 @@ bool ES1setGlobalParameters(unsigned int timeout) {
   // 153 bytes encoded
   uint16_t len;
   uint16_t i;
+  uint8_t sysExBuffer[SYSEX_BUFFER_SIZE];
+  bool msg;
+  midiXparser midiOutParser;
 
+  midiOutParser.setSysExFilter(true,6);
 
   // Notes values used for BorgTribe to avoid conflicts
 
@@ -158,13 +190,22 @@ bool ES1setGlobalParameters(unsigned int timeout) {
   Serial.write(0xF7);
 
   // Wait the ACK  F0 42 30 57 23 F7
-  len = getSysEx( sysExBuffer, sizeof(sysExBuffer), timeout );
-  if (len == 6 ) {
-    if (     sysExBuffer[0] == 0xF0
-         &&  sysExBuffer[1] == 0x42
-         &&  sysExBuffer[2] == (0x30 + ES1GlobalParameters.midiGlobalParameters.MidiCH)
-         &&  sysExBuffer[3] == 0x57
-         &&  sysExBuffer[4] == 0x23 )
+
+  unsigned long currentMillis = millis();
+    
+  // Wait for SYSEX msg
+  currentMillis = millis();
+  while ( millis()  < (currentMillis + timeout)  ) {            
+        if ( midiSerial.available() && ( msg = midiOutParser.parse( midiSerial.read() ) ) ) break;
+  }
+
+  if (!msg) return false;
+  
+  if (len == 4 ) {
+    if (     sysExBuffer[0] == 0x42
+         &&  sysExBuffer[1] == (0x30 + ES1GlobalParameters.midiGlobalParameters.MidiCH)
+         &&  sysExBuffer[2] == 0x57
+         &&  sysExBuffer[3] == 0x23 )
     return true;    
   }
   
@@ -595,40 +636,6 @@ void ES1processMidiMsg(uint8_t midiMessage [] ) {
         ES1processPitchBend(midiMessage[1],midiMessage[2],midiMessage[0] & 0x0F);
         break;
   }
-}
-
-
-/////////////////////////////////////////////////
-// GET A SYSEX REPLY MSG
-/////////////////////////////////////////////////
-long getSysEx( byte outData[], unsigned maxBuffLen, unsigned long timeout ) {
-
-  unsigned long currentMillis = millis();
-  unsigned len=0;
-  int readByte=0;
-
-  if (maxBuffLen < 2) return -1;
-
-  // Wait SYSEX Start
-  while ( ( readByte = midiSerial.read() )  != 0xF0 && ( millis()  < (currentMillis + timeout) ) );
-  if (readByte != 0xF0 ) return -1;
-  outData[len++] = readByte;
-
-  // Store SYSEX msg in the buffer
-  currentMillis = millis();
-
-  while ( (readByte = midiSerial.read() ) != 0xF7 && ( millis() < (currentMillis + timeout )  ) ) {
-      if ( readByte >= 0 && readByte <= 0x7F ) {
-        if ( len >= maxBuffLen ) return -1;
-        outData[len++] = readByte ;
-      }
-  }
-
-  if (readByte == 0xF7) {
-    outData[len++] = readByte ;
-    return len;
-  }
-  return -1;
 }
 
 /////////////////////////////////////////////////
