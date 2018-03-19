@@ -23,7 +23,7 @@ As you can see on the schematic also provided in the GIT repository, the analog 
 
 I had to develop an Arduino firmware to simulate potentiometers movements when pressing a note on the MIDI keyboard. That was not so easy as the 256 steps of the MCP4151 seem a bit short to address the only 127 values but from an analog pot with an infinite resolution.  After fine tuning sessions, I finally got a very acceptable result, and I'm now able to record samples pitch on the Electribe from an external midi keyboard.
 
-The Arduino Nano is fully embedd in the Electribe case, and works as the "man in the middle" behind the ES1 MIDI IN jack. It filters and eventually transforms every midi messages sent to the Electribe MIDI IN jack and resends such messages to the ES1 CPU .
+The Arduino Nano is fully embeded in the Electribe case, and works as the "man in the middle" behind the ES1 MIDI IN jack. It filters and eventually transforms every midi messages sent to the Electribe MIDI IN jack and resends such messages to the ES1 CPU .
 
 I had to tap directly on the ES1 motherboard but hopefully that was easy as there is a lot of space between pads you can tap in. (Hires pictures can be found on the GitHub project site). 
 
