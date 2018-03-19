@@ -15,7 +15,7 @@ To do this, I chose to develop on an Arduino Nano board, because of its small fa
 
 <a href="https://2.bp.blogspot.com/-O7bXoyTK9XA/WqVa-vA7vYI/AAAAAAAAAOA/q2avoGy6UwYW0HHfWyhIHsk2GISHa2fwwCLcBGAs/s1600/borgtribe_schematic.jpg" imageanchor="1" style="clear: left; float: left; margin-bottom: 1em; margin-right: 1em;"><img border="0" data-original-height="1268" data-original-width="1518" height="534" src="https://2.bp.blogspot.com/-O7bXoyTK9XA/WqVa-vA7vYI/AAAAAAAAAOA/q2avoGy6UwYW0HHfWyhIHsk2GISHa2fwwCLcBGAs/s640/borgtribe_schematic.jpg" width="640" /></a>
 
-The MCP4151 uses SPI, an that can be tricky on the Nano : notably the fact that MISO (pin 12) must be pulled up to MOSI (look at the 1K resistor).  That was working perfectly on the Uno proto board without that, so I suppose it is mandatory when using SPI on the Nano (whatever, it is required by SPI usually).
+The MCP4151 uses SPI, and that can be tricky on the Nano : notably the fact that MISO (pin 12) must be pulled up to MOSI (look at the 1K resistor).  That was working perfectly on the Uno proto board without that, so I suppose it is mandatory when using SPI on the Nano (whatever, it is required by SPI usually).
 
 As you can see on the schematic also provided in the GIT repository, the analog PITCH pot wiper pad is connected to the Nano Analog2 pin and disconnected from the ES1.  So, the Nano is able to read pot values and to resend them to the MCP 4151 digital potentiometer.  That was the first step of this project : be transparent, as shown on that video : https://www.youtube.com/watch?v=-8Kga-2tmuo
 
