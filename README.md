@@ -4,7 +4,7 @@ A Korg Electribe ES1 mod to enable pitch recording from a midi keyboard
 <a href="https://3.bp.blogspot.com/-L-vnz9OfxlU/WqVO8Esta4I/AAAAAAAAANc/KfdmPknEjdE51xwFZMG_CuVDMzH1P7KtQCLcBGAs/s1600/Electribe-ES1-770x433.png" imageanchor="1" style="clear: left; float: left; margin-bottom: 1em; margin-right: 1em;"><img border="0" data-original-height="433" data-original-width="770" height="179" src="https://3.bp.blogspot.com/-L-vnz9OfxlU/WqVO8Esta4I/AAAAAAAAANc/KfdmPknEjdE51xwFZMG_CuVDMzH1P7KtQCLcBGAs/s320/Electribe-ES1-770x433.png" width="320" /></a>
 
 
-I own an Electribe Korg for some time and I have to say that I really like this gear.  First because it is fast to handle, and second because it has a very special sound despite its relative low sampling rate comparing to current standard. I still use it in 2018, in the middle of much more elaborate gears (sometime too much elaborate !).
+I own an Electribe Korg for some time and I have to say that I really like this gear.  First because it is quick to learn, and second because it has a very special sound despite its relative low sampling rate comparing to current standard. I still use it in 2018, in the middle of much more elaborate gears (sometime too much elaborate !).
 
 The Electribe ES1 is however quite limited in functionality, and on one point in particular: its inability to play a sample chromatically with an external midi keyboard.  Close to my other Volkaoss project, I quickly realized a MIDI notes to Electribe ES1 Pitch Control changes with an Arduino Uno board. Everything worked perfectly, and I was able to play a sample chromatically with an external Midi keyboard BUT....
 
