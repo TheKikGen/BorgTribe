@@ -4,7 +4,7 @@ A Korg Electribe ES1 mod to enable pitch recording from a midi keyboard
 <a href="https://3.bp.blogspot.com/-L-vnz9OfxlU/WqVO8Esta4I/AAAAAAAAANc/KfdmPknEjdE51xwFZMG_CuVDMzH1P7KtQCLcBGAs/s1600/Electribe-ES1-770x433.png" imageanchor="1" style="clear: left; float: left; margin-bottom: 1em; margin-right: 1em;"><img border="0" data-original-height="433" data-original-width="770" height="179" src="https://3.bp.blogspot.com/-L-vnz9OfxlU/WqVO8Esta4I/AAAAAAAAANc/KfdmPknEjdE51xwFZMG_CuVDMzH1P7KtQCLcBGAs/s320/Electribe-ES1-770x433.png" width="320" /></a>
 
 
-I own an Electribe Korg for some time and I have to say that I really like this gear.  First because it is fast to handle, and second because it has a very special sound despite its relative low sampling rate comparing to current standard. I still use it in 2018, in the middle of much more elaborate gears (sometime too much elaborate !).
+I own an Electribe Korg for some time and I have to say that I really like this gear.  First because it is quick to learn, and second because it has a very special sound despite its relative low sampling rate comparing to current standard. I still use it in 2018, in the middle of much more elaborate gears (sometime too much elaborate !).
 
 The Electribe ES1 is however quite limited in functionality, and on one point in particular: its inability to play a sample chromatically with an external midi keyboard.  Close to my other Volkaoss project, I quickly realized a MIDI notes to Electribe ES1 Pitch Control changes with an Arduino Uno board. Everything worked perfectly, and I was able to play a sample chromatically with an external Midi keyboard BUT....
 
@@ -15,7 +15,7 @@ To do this, I chose to develop on an Arduino Nano board, because of its small fa
 
 <a href="https://2.bp.blogspot.com/-O7bXoyTK9XA/WqVa-vA7vYI/AAAAAAAAAOA/q2avoGy6UwYW0HHfWyhIHsk2GISHa2fwwCLcBGAs/s1600/borgtribe_schematic.jpg" imageanchor="1" style="clear: left; float: left; margin-bottom: 1em; margin-right: 1em;"><img border="0" data-original-height="1268" data-original-width="1518" height="534" src="https://2.bp.blogspot.com/-O7bXoyTK9XA/WqVa-vA7vYI/AAAAAAAAAOA/q2avoGy6UwYW0HHfWyhIHsk2GISHa2fwwCLcBGAs/s640/borgtribe_schematic.jpg" width="640" /></a>
 
-The MCP4151 uses SPI, an that can be tricky on the Nano : notably the fact that MISO (pin 12) must be pulled up to MOSI (look at the 1K resistor).  That was working perfectly on the Uno proto board without that, so I suppose it is mandatory when using SPI on the Nano (whatever, it is required by SPI usually).
+The MCP4151 uses SPI, and that can be tricky on the Nano : notably the fact that MISO (pin 12) must be pulled up to MOSI (look at the 1K resistor).  That was working perfectly on the Uno proto board without that, so I suppose it is mandatory when using SPI on the Nano (whatever, it is required by SPI usually).
 
 As you can see on the schematic also provided in the GIT repository, the analog PITCH pot wiper pad is connected to the Nano Analog2 pin and disconnected from the ES1.  So, the Nano is able to read pot values and to resend them to the MCP 4151 digital potentiometer.  That was the first step of this project : be transparent, as shown on that video : https://www.youtube.com/watch?v=-8Kga-2tmuo
 
@@ -23,7 +23,7 @@ As you can see on the schematic also provided in the GIT repository, the analog 
 
 I had to develop an Arduino firmware to simulate potentiometers movements when pressing a note on the MIDI keyboard. That was not so easy as the 256 steps of the MCP4151 seem a bit short to address the only 127 values but from an analog pot with an infinite resolution.  After fine tuning sessions, I finally got a very acceptable result, and I'm now able to record samples pitch on the Electribe from an external midi keyboard.
 
-The Arduino Nano is fully embedd in the Electribe case, and works as the "man in the middle" behind the ES1 MIDI IN jack. It filters and eventually transforms every midi messages sent to the Electribe MIDI IN jack and resends such messages to the ES1 CPU .
+The Arduino Nano is fully embeded in the Electribe case, and works as the "man in the middle" behind the ES1 MIDI IN jack. It filters and eventually transforms every midi messages sent to the Electribe MIDI IN jack and resends such messages to the ES1 CPU .
 
 I had to tap directly on the ES1 motherboard but hopefully that was easy as there is a lot of space between pads you can tap in. (Hires pictures can be found on the GitHub project site). 
 
